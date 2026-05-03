@@ -177,6 +177,42 @@ namespace PotatoCornerSys
         protected global::System.Web.UI.WebControls.Label lblPointsMsg;
 
         /// <summary>
+        /// lblTotalOrders control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Label lblTotalOrders;
+
+        /// <summary>
+        /// lblTotalSpent control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Label lblTotalSpent;
+
+        /// <summary>
+        /// lblAvgOrder control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Label lblAvgOrder;
+
+        /// <summary>
+        /// lblBiggestOrder control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Label lblBiggestOrder;
+
+        /// <summary>
         /// btnOrderSummary control.
         /// </summary>
         /// <remarks>
@@ -186,15 +222,6 @@ namespace PotatoCornerSys
         protected global::System.Web.UI.WebControls.Button btnOrderSummary;
 
         /// <summary>
-        /// btnClearHistory control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.WebControls.Button btnClearHistory;
-
-        /// <summary>
         /// ddlSortOrder control.
         /// </summary>
         /// <remarks>
@@ -202,6 +229,15 @@ namespace PotatoCornerSys
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.DropDownList ddlSortOrder;
+
+        /// <summary>
+        /// ddlFilterStatus control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.DropDownList ddlFilterStatus;
 
         /// <summary>
         /// txtSearchOrderID control.
@@ -231,6 +267,24 @@ namespace PotatoCornerSys
         protected global::System.Web.UI.WebControls.Button btnClearSearch;
 
         /// <summary>
+        /// pnlSearchResult control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Panel pnlSearchResult;
+
+        /// <summary>
+        /// lblSearchResultMsg control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Label lblSearchResultMsg;
+
+        /// <summary>
         /// pnlNoOrders control.
         /// </summary>
         /// <remarks>
@@ -238,6 +292,24 @@ namespace PotatoCornerSys
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.Panel pnlNoOrders;
+
+        /// <summary>
+        /// lblNoOrdersMsg control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Label lblNoOrdersMsg;
+
+        /// <summary>
+        /// pnlOrdersTable control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Panel pnlOrdersTable;
 
         /// <summary>
         /// rptOrderHistory control.

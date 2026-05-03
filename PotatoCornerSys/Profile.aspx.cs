@@ -20,6 +20,7 @@ namespace PotatoCornerSys
                 LoadLoyaltyPoints();
                 LoadFavoriteOrder();
                 LoadOrderHistory();
+                LoadOrderStats(); // ← FIX #8: COUNT / AGGREGATE
             }
         }
 
@@ -36,20 +37,15 @@ namespace PotatoCornerSys
                 try
                 {
                     string connectionString = ConfigurationManager.ConnectionStrings["PotatoCornerDB"].ConnectionString;
-
                     using (SqlConnection conn = new SqlConnection(connectionString))
                     {
                         conn.Open();
-
                         int customerID = 0;
                         if (Session["CustomerID"] != null)
-                        {
                             int.TryParse(Session["CustomerID"].ToString(), out customerID);
-                        }
 
                         if (customerID > 0)
                         {
-                            // ✅ FIXED: Removed RoyaltyNumber and ProfilePicture (don't exist in table)
                             string query = @"
                                 SELECT u.Fullname, u.Email, u.PhoneNumber, u.[Address], u.Points, u.MembershipLevel, u.DateCreated,
                                        m.MembershipNumber
@@ -60,7 +56,6 @@ namespace PotatoCornerSys
                             using (SqlCommand cmd = new SqlCommand(query, conn))
                             {
                                 cmd.Parameters.AddWithValue("@CustomerID", customerID);
-
                                 using (SqlDataReader reader = cmd.ExecuteReader())
                                 {
                                     if (reader.Read())
@@ -73,13 +68,11 @@ namespace PotatoCornerSys
                                         Session["MembershipLevel"] = reader["MembershipLevel"].ToString();
                                         Session["MemberSince"] = Convert.ToDateTime(reader["DateCreated"]).ToString("MMM dd, yyyy");
 
-                                        // ✅ FIXED: Use MembershipNumber instead of RoyaltyNumber
                                         if (!reader.IsDBNull(reader.GetOrdinal("MembershipNumber")))
                                         {
                                             Session["RoyaltyNumber"] = reader["MembershipNumber"].ToString();
                                             Session["HasRoyaltyMembership"] = true;
                                         }
-                                        // ✅ FIXED: Removed ProfilePicture block (column doesn't exist)
                                     }
                                 }
                             }
@@ -94,20 +87,13 @@ namespace PotatoCornerSys
                 string displayName = Session["Name"]?.ToString() ?? Session["Username"].ToString();
                 lblFullName.Text = displayName;
 
-                string name = displayName;
-                string[] nameParts = name.Split(' ');
+                string[] nameParts = displayName.Split(' ');
                 if (nameParts.Length >= 2)
-                {
                     lblInitials.Text = nameParts[0][0].ToString() + nameParts[1][0].ToString();
-                }
-                else if (name.Length >= 2)
-                {
-                    lblInitials.Text = name.Substring(0, 2).ToUpper();
-                }
+                else if (displayName.Length >= 2)
+                    lblInitials.Text = displayName.Substring(0, 2).ToUpper();
                 else
-                {
-                    lblInitials.Text = name.Substring(0, 1).ToUpper();
-                }
+                    lblInitials.Text = displayName.Substring(0, 1).ToUpper();
             }
             else
             {
@@ -122,7 +108,6 @@ namespace PotatoCornerSys
 
             bool isRoyaltyMember = CheckIfRoyaltyMember();
 
-            // ✅ Profile picture from file only (no DB column)
             string picturePath = GetProfilePicturePath();
             if (!string.IsNullOrEmpty(picturePath))
             {
@@ -140,7 +125,6 @@ namespace PotatoCornerSys
             {
                 lblMembershipBadge.Text = "ROYALTY MEMBER";
                 lblMembershipBadge.CssClass = "membership-badge royalty";
-
                 if (Session["RoyaltyNumber"] != null)
                 {
                     lblRoyaltyNumber.Text = Session["RoyaltyNumber"].ToString();
@@ -159,17 +143,12 @@ namespace PotatoCornerSys
             try
             {
                 string connectionString = ConfigurationManager.ConnectionStrings["PotatoCornerDB"].ConnectionString;
-
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-
                     int customerID = 0;
                     if (Session["CustomerID"] != null)
-                    {
                         int.TryParse(Session["CustomerID"].ToString(), out customerID);
-                    }
-
                     if (customerID == 0) return false;
 
                     string query = @"
@@ -181,14 +160,12 @@ namespace PotatoCornerSys
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@CustomerID", customerID);
-
                         using (SqlDataReader reader = cmd.ExecuteReader())
                         {
                             if (reader.Read())
                             {
                                 Session["HasRoyaltyMembership"] = true;
                                 Session["MembershipLevel"] = "Royalty";
-
                                 string membershipNumber = reader["MembershipNumber"].ToString();
                                 Session["RoyaltyNumber"] = membershipNumber;
 
@@ -203,7 +180,6 @@ namespace PotatoCornerSys
                                         break;
                                     }
                                 }
-
                                 return true;
                             }
                         }
@@ -214,7 +190,6 @@ namespace PotatoCornerSys
             {
                 System.Diagnostics.Debug.WriteLine("Error checking royalty membership: " + ex.Message);
             }
-
             return Session["HasRoyaltyMembership"] != null && (bool)Session["HasRoyaltyMembership"];
         }
 
@@ -227,45 +202,33 @@ namespace PotatoCornerSys
                     string picturePath = Session["MemberPicture"].ToString();
                     string serverPath = Server.MapPath(picturePath);
                     if (System.IO.File.Exists(serverPath))
-                    {
                         return picturePath;
-                    }
                 }
 
                 string connectionString = ConfigurationManager.ConnectionStrings["PotatoCornerDB"].ConnectionString;
-
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-
                     int customerID = 0;
                     if (Session["CustomerID"] != null)
-                    {
                         int.TryParse(Session["CustomerID"].ToString(), out customerID);
-                    }
-
                     if (customerID == 0) return null;
 
                     string membershipQuery = "SELECT MembershipNumber FROM Membership WHERE CustomerID = @CustomerID";
-
                     using (SqlCommand cmd = new SqlCommand(membershipQuery, conn))
                     {
                         cmd.Parameters.AddWithValue("@CustomerID", customerID);
                         object result = cmd.ExecuteScalar();
-
                         if (result != null)
                         {
                             string membershipNumber = result.ToString();
                             string[] possibleExtensions = { ".jpg", ".jpeg", ".png" };
-
                             foreach (string ext in possibleExtensions)
                             {
                                 string path = $"~/Uploads/{membershipNumber}{ext}";
                                 string serverPath = Server.MapPath(path);
                                 if (System.IO.File.Exists(serverPath))
-                                {
                                     return path;
-                                }
                             }
                         }
                     }
@@ -275,7 +238,6 @@ namespace PotatoCornerSys
             {
                 System.Diagnostics.Debug.WriteLine("Error loading profile picture: " + ex.Message);
             }
-
             return null;
         }
 
@@ -285,9 +247,7 @@ namespace PotatoCornerSys
             {
                 int points = 0;
                 if (Session["Points"] != null)
-                {
                     int.TryParse(Session["Points"].ToString(), out points);
-                }
 
                 lblPoints.Text = points.ToString();
                 decimal pointsValue = points * 10;
@@ -301,56 +261,128 @@ namespace PotatoCornerSys
             }
         }
 
-        private void LoadFavoriteOrder()
+        // ═══════════════════════════════════════════════════════
+        // FIX #8 — COUNT / SUM / AVG / GROUP BY (was MISSING)
+        // ═══════════════════════════════════════════════════════
+        private void LoadOrderStats()
         {
-            // Keeping for compatibility
+            try
+            {
+                string connectionString = ConfigurationManager.ConnectionStrings["PotatoCornerDB"].ConnectionString;
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    int customerID = 0;
+                    if (Session["CustomerID"] != null)
+                        int.TryParse(Session["CustomerID"].ToString(), out customerID);
+                    if (customerID == 0) return;
+
+                    // COUNT, SUM, AVG, MAX — overall order stats
+                    string statsQuery = @"
+                        SELECT 
+                            COUNT(o.OrderID)       AS TotalOrders,
+                            SUM(o.TotalAmount)     AS TotalSpent,
+                            AVG(o.TotalAmount)     AS AvgOrderValue,
+                            MAX(o.TotalAmount)     AS BiggestOrder
+                        FROM Orders o
+                        WHERE o.CustomerID = @CustomerID
+                          AND o.OrderStatus != 'Cancelled'";
+
+                    using (SqlCommand cmd = new SqlCommand(statsQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@CustomerID", customerID);
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                lblTotalOrders.Text = reader["TotalOrders"].ToString();
+                                lblTotalSpent.Text = reader["TotalSpent"] != DBNull.Value
+                                    ? Convert.ToDecimal(reader["TotalSpent"]).ToString("₱#,##0.00") : "₱0.00";
+                                lblAvgOrder.Text = reader["AvgOrderValue"] != DBNull.Value
+                                    ? Convert.ToDecimal(reader["AvgOrderValue"]).ToString("₱#,##0.00") : "₱0.00";
+                                lblBiggestOrder.Text = reader["BiggestOrder"] != DBNull.Value
+                                    ? Convert.ToDecimal(reader["BiggestOrder"]).ToString("₱#,##0.00") : "₱0.00";
+                            }
+                        }
+                    }
+
+                    // GROUP BY — count and total per order status
+                    string groupQuery = @"
+                        SELECT 
+                            o.OrderStatus,
+                            COUNT(o.OrderID)    AS StatusCount,
+                            SUM(o.TotalAmount)  AS StatusTotal
+                        FROM Orders o
+                        WHERE o.CustomerID = @CustomerID
+                        GROUP BY o.OrderStatus";
+
+                    using (SqlCommand cmd = new SqlCommand(groupQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@CustomerID", customerID);
+                        DataTable dt = new DataTable();
+                        using (SqlDataAdapter adapter = new SqlDataAdapter(cmd))
+                        {
+                            adapter.Fill(dt);
+                        }
+                        // Bind to a repeater or label on your .aspx as needed
+                        // e.g. rptOrderStats.DataSource = dt; rptOrderStats.DataBind();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Error loading order stats: " + ex.Message);
+            }
         }
+
+        private void LoadFavoriteOrder() { }
 
         private void LoadOrderHistory()
         {
             LoadOrderHistory(null);
         }
 
+        // ═══════════════════════════════════════════════════════
+        // FIX #6 — FILTER now includes status/category filter
+        // ═══════════════════════════════════════════════════════
         private void LoadOrderHistory(string searchOrderID)
         {
             UpdateOrderStatusInDatabase();
-
             string sortOrder = ddlSortOrder.SelectedValue;
+            string statusFilter = ddlFilterStatus.SelectedValue; // "All","Pending","Confirmed","Delivered","Cancelled"
 
             try
             {
                 string connectionString = ConfigurationManager.ConnectionStrings["PotatoCornerDB"].ConnectionString;
-
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-
                     int customerID = 0;
                     if (Session["CustomerID"] != null)
-                    {
                         int.TryParse(Session["CustomerID"].ToString(), out customerID);
-                    }
 
                     if (customerID == 0)
                     {
+                        pnlOrdersTable.Visible = false;
                         pnlNoOrders.Visible = true;
+                        lblNoOrdersMsg.Text = "No orders yet. Start ordering to see your history here!";
                         return;
                     }
 
+                    // Base WHERE clause
                     string whereClause = "WHERE o.CustomerID = @CustomerID";
+
+                    // SEARCH filter (requirement #5)
                     if (!string.IsNullOrEmpty(searchOrderID))
-                    {
                         whereClause += " AND o.OrderID = @SearchOrderID";
-                    }
+
+                    // CATEGORY/STATUS filter (requirement #6 — was partial, now full)
+                    if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "All")
+                        whereClause += " AND o.OrderStatus = @StatusFilter";
 
                     string query = @"
                         SELECT 
-                            o.OrderID,
-                            o.OrderDate,
-                            o.DeliveryType,
-                            o.TotalAmount,
-                            o.OrderStatus,
-                            o.PickupTime,
+                            o.OrderID, o.OrderDate, o.DeliveryType, o.TotalAmount, o.OrderStatus, o.PickupTime,
                             CASE 
                                 WHEN o.DeliveryType = 'Walk-in' AND o.PickupTime IS NOT NULL 
                                 THEN FORMAT(o.PickupTime, 'MMM dd, yyyy h:mm tt')
@@ -359,12 +391,9 @@ namespace PotatoCornerSys
                             STUFF((
                                 SELECT ', ' + p.ProductName + 
                                     CASE 
-                                        WHEN ps.SizeName IS NOT NULL AND pf.FlavorName IS NOT NULL 
-                                        THEN ' (' + ps.SizeName + ', ' + pf.FlavorName + ')'
-                                        WHEN ps.SizeName IS NOT NULL 
-                                        THEN ' (' + ps.SizeName + ')'
-                                        WHEN pf.FlavorName IS NOT NULL 
-                                        THEN ' (' + pf.FlavorName + ')'
+                                        WHEN ps.SizeName IS NOT NULL AND pf.FlavorName IS NOT NULL THEN ' (' + ps.SizeName + ', ' + pf.FlavorName + ')'
+                                        WHEN ps.SizeName IS NOT NULL THEN ' (' + ps.SizeName + ')'
+                                        WHEN pf.FlavorName IS NOT NULL THEN ' (' + pf.FlavorName + ')'
                                         ELSE ''
                                     END + ' x' + CAST(oi.Quantity AS VARCHAR)
                                 FROM OrderItems oi
@@ -386,15 +415,20 @@ namespace PotatoCornerSys
                         {
                             int orderIdInt;
                             if (int.TryParse(searchOrderID, out orderIdInt))
-                            {
                                 cmd.Parameters.AddWithValue("@SearchOrderID", orderIdInt);
-                            }
                             else
                             {
+                                pnlOrdersTable.Visible = false;
                                 pnlNoOrders.Visible = true;
+                                pnlSearchResult.Visible = false;
+                                lblNoOrdersMsg.Text = "Please enter a valid numeric Order ID.";
                                 return;
                             }
                         }
+
+                        // Add status filter parameter if active
+                        if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "All")
+                            cmd.Parameters.AddWithValue("@StatusFilter", statusFilter);
 
                         DataTable dt = new DataTable();
                         using (SqlDataAdapter adapter = new SqlDataAdapter(cmd))
@@ -406,18 +440,40 @@ namespace PotatoCornerSys
                         {
                             rptOrderHistory.DataSource = dt;
                             rptOrderHistory.DataBind();
+                            pnlOrdersTable.Visible = true;
                             pnlNoOrders.Visible = false;
+
+                            if (!string.IsNullOrEmpty(searchOrderID))
+                            {
+                                pnlSearchResult.Visible = true;
+                                lblSearchResultMsg.Text = $"Showing result for Order #PC-{searchOrderID}";
+                            }
+                            else
+                            {
+                                pnlSearchResult.Visible = false;
+                            }
                         }
                         else
                         {
+                            pnlOrdersTable.Visible = false;
                             pnlNoOrders.Visible = true;
+                            pnlSearchResult.Visible = false;
+
+                            lblNoOrdersMsg.Text = !string.IsNullOrEmpty(searchOrderID)
+                                ? $"No order found with ID #PC-{searchOrderID}. Please check the number and try again."
+                                : !string.IsNullOrEmpty(statusFilter) && statusFilter != "All"
+                                    ? $"No {statusFilter} orders found."
+                                    : "No orders yet. Start ordering to see your history here!";
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
+                pnlOrdersTable.Visible = false;
                 pnlNoOrders.Visible = true;
+                pnlSearchResult.Visible = false;
+                lblNoOrdersMsg.Text = "An error occurred loading your orders. Please try again.";
                 System.Diagnostics.Debug.WriteLine("Error loading order history: " + ex.Message);
             }
         }
@@ -426,10 +482,8 @@ namespace PotatoCornerSys
         {
             Session["UsePointsDiscount"] = "true";
             Session["PointsDiscount"] = lblDiscountPower.Text;
-
             lblPointsMsg.Text = "✓ Points will be applied as discount on your next order!";
             lblPointsMsg.Visible = true;
-
             Response.AddHeader("REFRESH", "2;URL=Order.aspx");
         }
 
@@ -442,22 +496,14 @@ namespace PotatoCornerSys
                 try
                 {
                     string connectionString = ConfigurationManager.ConnectionStrings["PotatoCornerDB"].ConnectionString;
-
                     using (SqlConnection conn = new SqlConnection(connectionString))
                     {
                         conn.Open();
-
                         string query = @"
-                            SELECT 
-                                oi.ProductID,
-                                p.ProductName,
-                                oi.SizeID,
-                                ps.SizeName,
-                                oi.FlavorID,
-                                pf.FlavorName,
-                                oi.Quantity,
-                                (p.BasePrice + ISNULL(ps.PriceModifier, 0)) AS CurrentPrice,
-                                oi.UnitPrice AS OriginalPrice
+                            SELECT oi.ProductID, p.ProductName, oi.SizeID, ps.SizeName,
+                                   oi.FlavorID, pf.FlavorName, oi.Quantity,
+                                   (p.BasePrice + ISNULL(ps.PriceModifier, 0)) AS CurrentPrice,
+                                   oi.UnitPrice AS OriginalPrice
                             FROM OrderItems oi
                             INNER JOIN Products p ON oi.ProductID = p.ProductID
                             LEFT JOIN ProductSizes ps ON oi.SizeID = ps.SizeID
@@ -466,11 +512,9 @@ namespace PotatoCornerSys
                             ORDER BY oi.OrderItemID";
 
                         List<Order.CartItem> cart = new List<Order.CartItem>();
-
                         using (SqlCommand cmd = new SqlCommand(query, conn))
                         {
                             cmd.Parameters.AddWithValue("@OrderID", Convert.ToInt32(orderID));
-
                             using (SqlDataReader reader = cmd.ExecuteReader())
                             {
                                 while (reader.Read())
@@ -510,24 +554,19 @@ namespace PotatoCornerSys
                 try
                 {
                     string connectionString = ConfigurationManager.ConnectionStrings["PotatoCornerDB"].ConnectionString;
-
                     using (SqlConnection conn = new SqlConnection(connectionString))
                     {
                         conn.Open();
-
                         string updateQuery = "UPDATE Orders SET OrderStatus = 'Cancelled' WHERE OrderID = @OrderID";
-
                         using (SqlCommand cmd = new SqlCommand(updateQuery, conn))
                         {
                             cmd.Parameters.AddWithValue("@OrderID", Convert.ToInt32(orderID));
                             int rowsAffected = cmd.ExecuteNonQuery();
-
                             Session["CancelMessage"] = rowsAffected > 0
                                 ? "✓ Order #" + orderID + " has been cancelled successfully."
                                 : "✗ Failed to cancel order #" + orderID + ".";
                         }
                     }
-
                     Response.Redirect(Request.RawUrl);
                 }
                 catch (Exception ex)
@@ -542,16 +581,8 @@ namespace PotatoCornerSys
         {
             List<Order.CartItem> cart = new List<Order.CartItem>
             {
-                new Order.CartItem
-                {
-                    Product   = "French Fries",
-                    Size      = "Large",
-                    Flavor    = "Cheese",
-                    Qty       = 1,
-                    UnitPrice = 58m
-                }
+                new Order.CartItem { Product = "French Fries", Size = "Large", Flavor = "Cheese", Qty = 1, UnitPrice = 58m }
             };
-
             Session["Cart"] = cart;
             Session["ReorderMessage"] = "✓ Sample order loaded! Review and confirm your order.";
             Response.Redirect("Order.aspx");
@@ -561,15 +592,11 @@ namespace PotatoCornerSys
         {
             switch (dbStatus?.ToLower())
             {
-                case "delivered":
-                    return "<span class='order-status status-delivered'>Delivered</span>";
-                case "confirmed":
-                    return "<span class='order-status status-confirmed'>Confirmed</span>";
-                case "cancelled":
-                    return "<span class='order-status status-cancelled'>Cancelled</span>";
+                case "delivered": return "<span class='order-status status-delivered'>Delivered</span>";
+                case "confirmed": return "<span class='order-status status-confirmed'>Confirmed</span>";
+                case "cancelled": return "<span class='order-status status-cancelled'>Cancelled</span>";
                 case "pending":
-                default:
-                    return "<span class='order-status status-pending'>Pending</span>";
+                default: return "<span class='order-status status-pending'>Pending</span>";
             }
         }
 
@@ -578,28 +605,19 @@ namespace PotatoCornerSys
             try
             {
                 string connectionString = ConfigurationManager.ConnectionStrings["PotatoCornerDB"].ConnectionString;
-
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-
                     int customerID = 0;
                     if (Session["CustomerID"] != null)
-                    {
                         int.TryParse(Session["CustomerID"].ToString(), out customerID);
-                    }
-
                     if (customerID == 0) return;
 
                     string confirmQuery = @"
-                        UPDATE Orders 
-                        SET OrderStatus = 'Confirmed', 
-                            ConfirmedAt = DATEADD(MINUTE, 5, OrderDate)
-                        WHERE CustomerID = @CustomerID 
-                        AND OrderStatus = 'Pending' 
+                        UPDATE Orders SET OrderStatus = 'Confirmed', ConfirmedAt = DATEADD(MINUTE, 5, OrderDate)
+                        WHERE CustomerID = @CustomerID AND OrderStatus = 'Pending'
                         AND DATEDIFF(MINUTE, OrderDate, GETDATE()) >= 5
                         AND DATEDIFF(MINUTE, OrderDate, GETDATE()) < 15";
-
                     using (SqlCommand cmd = new SqlCommand(confirmQuery, conn))
                     {
                         cmd.Parameters.AddWithValue("@CustomerID", customerID);
@@ -608,16 +626,11 @@ namespace PotatoCornerSys
 
                     string deliverQuery = @"
                         UPDATE Orders 
-                        SET OrderStatus = 'Delivered', 
-                            DeliveredAt = DATEADD(MINUTE, 15, OrderDate),
-                            ConfirmedAt = CASE 
-                                WHEN ConfirmedAt IS NULL THEN DATEADD(MINUTE, 5, OrderDate)
-                                ELSE ConfirmedAt 
-                            END
-                        WHERE CustomerID = @CustomerID 
+                        SET OrderStatus = 'Delivered', DeliveredAt = DATEADD(MINUTE, 15, OrderDate),
+                            ConfirmedAt = CASE WHEN ConfirmedAt IS NULL THEN DATEADD(MINUTE, 5, OrderDate) ELSE ConfirmedAt END
+                        WHERE CustomerID = @CustomerID
                         AND (OrderStatus = 'Pending' OR OrderStatus = 'Confirmed')
                         AND DATEDIFF(MINUTE, OrderDate, GETDATE()) >= 15";
-
                     using (SqlCommand cmd = new SqlCommand(deliverQuery, conn))
                     {
                         cmd.Parameters.AddWithValue("@CustomerID", customerID);
@@ -635,9 +648,7 @@ namespace PotatoCornerSys
         {
             TimeSpan timeSinceOrder = DateTime.Now - orderDate;
             if (timeSinceOrder.TotalMinutes <= 10)
-            {
                 return $"<button type='button' class='btn-cancel' onclick='cancelOrder({orderID})'>Cancel Order</button>";
-            }
             return "";
         }
 
@@ -652,6 +663,13 @@ namespace PotatoCornerSys
             LoadOrderHistory(!string.IsNullOrEmpty(searchText) ? searchText : null);
         }
 
+        // FIX #6 — new event handler for status filter dropdown
+        protected void ddlFilterStatus_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            string searchText = txtSearchOrderID.Text.Trim();
+            LoadOrderHistory(!string.IsNullOrEmpty(searchText) ? searchText : null);
+        }
+
         protected void btnSearch_Click(object sender, EventArgs e)
         {
             string searchOrderID = txtSearchOrderID.Text.Trim();
@@ -661,7 +679,8 @@ namespace PotatoCornerSys
         protected void btnClearSearch_Click(object sender, EventArgs e)
         {
             txtSearchOrderID.Text = "";
-            LoadOrderHistory();
+            pnlSearchResult.Visible = false;
+            LoadOrderHistory(null);
         }
 
         protected void btnClearHistory_Click(object sender, EventArgs e)
@@ -669,23 +688,15 @@ namespace PotatoCornerSys
             try
             {
                 string connectionString = ConfigurationManager.ConnectionStrings["PotatoCornerDB"].ConnectionString;
-
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-
                     int customerID = 0;
                     if (Session["CustomerID"] != null)
-                    {
                         int.TryParse(Session["CustomerID"].ToString(), out customerID);
-                    }
-
                     if (customerID == 0) return;
 
-                    string deleteItemsQuery = @"
-                        DELETE FROM OrderItems 
-                        WHERE OrderID IN (SELECT OrderID FROM Orders WHERE CustomerID = @CustomerID)";
-
+                    string deleteItemsQuery = @"DELETE FROM OrderItems WHERE OrderID IN (SELECT OrderID FROM Orders WHERE CustomerID = @CustomerID)";
                     string deleteOrdersQuery = "DELETE FROM Orders WHERE CustomerID = @CustomerID";
 
                     using (SqlCommand cmd = new SqlCommand(deleteItemsQuery, conn))
@@ -693,13 +704,11 @@ namespace PotatoCornerSys
                         cmd.Parameters.AddWithValue("@CustomerID", customerID);
                         cmd.ExecuteNonQuery();
                     }
-
                     using (SqlCommand cmd = new SqlCommand(deleteOrdersQuery, conn))
                     {
                         cmd.Parameters.AddWithValue("@CustomerID", customerID);
                         cmd.ExecuteNonQuery();
                     }
-
                     LoadOrderHistory();
                 }
             }
@@ -717,20 +726,16 @@ namespace PotatoCornerSys
                 if (string.IsNullOrEmpty(orderID)) return;
 
                 string connectionString = ConfigurationManager.ConnectionStrings["PotatoCornerDB"].ConnectionString;
-
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-
                     string updateQuery = "UPDATE Orders SET OrderStatus = 'Cancelled' WHERE OrderID = @OrderID";
-
                     using (SqlCommand cmd = new SqlCommand(updateQuery, conn))
                     {
                         cmd.Parameters.AddWithValue("@OrderID", int.Parse(orderID));
                         cmd.ExecuteNonQuery();
                     }
                 }
-
                 LoadOrderHistory();
             }
             catch (Exception ex)
