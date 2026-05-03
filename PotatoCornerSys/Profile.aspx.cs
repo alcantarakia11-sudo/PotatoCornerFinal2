@@ -22,6 +22,7 @@ namespace PotatoCornerSys
                 LoadOrderHistory();
             }
         }
+
         protected void btnLogout_Click(object sender, EventArgs e)
         {
             Session.Clear();
@@ -30,7 +31,6 @@ namespace PotatoCornerSys
 
         private void LoadCustomerInfo()
         {
-            // Get customer info from session (set during login/registration)
             if (Session["Username"] != null)
             {
                 try
@@ -41,7 +41,6 @@ namespace PotatoCornerSys
                     {
                         conn.Open();
 
-                        // Get CustomerID from session
                         int customerID = 0;
                         if (Session["CustomerID"] != null)
                         {
@@ -50,10 +49,10 @@ namespace PotatoCornerSys
 
                         if (customerID > 0)
                         {
-                            // Load customer data from database
+                            // ✅ FIXED: Removed RoyaltyNumber and ProfilePicture (don't exist in table)
                             string query = @"
                                 SELECT u.Fullname, u.Email, u.PhoneNumber, u.[Address], u.Points, u.MembershipLevel, u.DateCreated,
-                                       m.RoyaltyNumber, m.ProfilePicture
+                                       m.MembershipNumber
                                 FROM USERS u
                                 LEFT JOIN Membership m ON u.CustomerID = m.CustomerID
                                 WHERE u.CustomerID = @CustomerID";
@@ -66,26 +65,21 @@ namespace PotatoCornerSys
                                 {
                                     if (reader.Read())
                                     {
-                                        // Update session with fresh data
                                         Session["Name"] = reader["Fullname"].ToString();
                                         Session["Email"] = reader["Email"].ToString();
                                         Session["Phone"] = reader["PhoneNumber"].ToString();
                                         Session["Address"] = reader["Address"].ToString();
                                         Session["Points"] = reader["Points"].ToString();
                                         Session["MembershipLevel"] = reader["MembershipLevel"].ToString();
+                                        Session["MemberSince"] = Convert.ToDateTime(reader["DateCreated"]).ToString("MMM dd, yyyy");
 
-                                        if (!reader.IsDBNull(reader.GetOrdinal("RoyaltyNumber")))
+                                        // ✅ FIXED: Use MembershipNumber instead of RoyaltyNumber
+                                        if (!reader.IsDBNull(reader.GetOrdinal("MembershipNumber")))
                                         {
-                                            Session["RoyaltyNumber"] = reader["RoyaltyNumber"].ToString();
+                                            Session["RoyaltyNumber"] = reader["MembershipNumber"].ToString();
                                             Session["HasRoyaltyMembership"] = true;
                                         }
-
-                                        if (!reader.IsDBNull(reader.GetOrdinal("ProfilePicture")))
-                                        {
-                                            Session["MemberPicture"] = reader["ProfilePicture"].ToString();
-                                        }
-
-                                        Session["MemberSince"] = Convert.ToDateTime(reader["DateCreated"]).ToString("MMM dd, yyyy");
+                                        // ✅ FIXED: Removed ProfilePicture block (column doesn't exist)
                                     }
                                 }
                             }
@@ -94,15 +88,12 @@ namespace PotatoCornerSys
                 }
                 catch (Exception ex)
                 {
-                    // Handle database errors - use session data as fallback
                     System.Diagnostics.Debug.WriteLine("Error loading customer info: " + ex.Message);
                 }
 
-                // Use actual name from database/session
                 string displayName = Session["Name"]?.ToString() ?? Session["Username"].ToString();
                 lblFullName.Text = displayName;
 
-                // Generate initials from name
                 string name = displayName;
                 string[] nameParts = name.Split(' ');
                 if (nameParts.Length >= 2)
@@ -120,24 +111,21 @@ namespace PotatoCornerSys
             }
             else
             {
-                // No session - redirect to login
                 Response.Redirect("Login.aspx");
                 return;
             }
 
-            // Load customer details
             lblEmailAvatar.Text = Session["Email"]?.ToString() ?? "email@example.com";
             lblInfoPhone.Text = Session["Phone"]?.ToString() ?? "N/A";
             lblInfoAddress.Text = Session["Address"]?.ToString() ?? "N/A";
             lblMemberSince.Text = Session["MemberSince"]?.ToString() ?? DateTime.Now.ToString("MMM dd, yyyy");
 
-            // Check if user is royalty member
             bool isRoyaltyMember = CheckIfRoyaltyMember();
 
-            // Load profile picture if available
-            if (Session["MemberPicture"] != null && !string.IsNullOrEmpty(Session["MemberPicture"].ToString()))
+            // ✅ Profile picture from file only (no DB column)
+            string picturePath = GetProfilePicturePath();
+            if (!string.IsNullOrEmpty(picturePath))
             {
-                string picturePath = Session["MemberPicture"].ToString();
                 imgProfilePic.ImageUrl = picturePath;
                 imgProfilePic.Visible = true;
                 lblInitials.Visible = false;
@@ -153,7 +141,6 @@ namespace PotatoCornerSys
                 lblMembershipBadge.Text = "ROYALTY MEMBER";
                 lblMembershipBadge.CssClass = "membership-badge royalty";
 
-                // Show royalty number if available
                 if (Session["RoyaltyNumber"] != null)
                 {
                     lblRoyaltyNumber.Text = Session["RoyaltyNumber"].ToString();
@@ -177,7 +164,6 @@ namespace PotatoCornerSys
                 {
                     conn.Open();
 
-                    // Get CustomerID from session
                     int customerID = 0;
                     if (Session["CustomerID"] != null)
                     {
@@ -186,7 +172,6 @@ namespace PotatoCornerSys
 
                     if (customerID == 0) return false;
 
-                    // Check if customer has royalty membership and get membership details
                     string query = @"
                         SELECT m.MembershipNumber, m.RegistrationDate, u.MembershipLevel
                         FROM Membership m
@@ -196,19 +181,18 @@ namespace PotatoCornerSys
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@CustomerID", customerID);
+
                         using (SqlDataReader reader = cmd.ExecuteReader())
                         {
                             if (reader.Read())
                             {
-                                // Store membership information in session
                                 Session["HasRoyaltyMembership"] = true;
-                                Session["RoyaltyNumber"] = reader["MembershipNumber"].ToString();
                                 Session["MembershipLevel"] = "Royalty";
-                                
-                                // Try to find and store the profile picture path
-                                string membershipNumber = reader["MembershipNumber"].ToString();
-                                string[] possibleExtensions = { ".jpg", ".jpeg", ".png" };
 
+                                string membershipNumber = reader["MembershipNumber"].ToString();
+                                Session["RoyaltyNumber"] = membershipNumber;
+
+                                string[] possibleExtensions = { ".jpg", ".jpeg", ".png" };
                                 foreach (string ext in possibleExtensions)
                                 {
                                     string path = $"~/Uploads/{membershipNumber}{ext}";
@@ -231,7 +215,6 @@ namespace PotatoCornerSys
                 System.Diagnostics.Debug.WriteLine("Error checking royalty membership: " + ex.Message);
             }
 
-            // Fallback to session check
             return Session["HasRoyaltyMembership"] != null && (bool)Session["HasRoyaltyMembership"];
         }
 
@@ -239,13 +222,22 @@ namespace PotatoCornerSys
         {
             try
             {
+                if (Session["MemberPicture"] != null)
+                {
+                    string picturePath = Session["MemberPicture"].ToString();
+                    string serverPath = Server.MapPath(picturePath);
+                    if (System.IO.File.Exists(serverPath))
+                    {
+                        return picturePath;
+                    }
+                }
+
                 string connectionString = ConfigurationManager.ConnectionStrings["PotatoCornerDB"].ConnectionString;
 
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
 
-                    // Get CustomerID from session
                     int customerID = 0;
                     if (Session["CustomerID"] != null)
                     {
@@ -254,20 +246,8 @@ namespace PotatoCornerSys
 
                     if (customerID == 0) return null;
 
-                    // Query the Membership table for the profile picture
-                    // Note: Your Membership table doesn't have ProfilePicture column, so we'll check session first
-                    if (Session["MemberPicture"] != null)
-                    {
-                        string picturePath = Session["MemberPicture"].ToString();
-                        string serverPath = Server.MapPath(picturePath);
-                        if (System.IO.File.Exists(serverPath))
-                        {
-                            return picturePath;
-                        }
-                    }
-
-                    // Try to find the picture file using the membership number
                     string membershipQuery = "SELECT MembershipNumber FROM Membership WHERE CustomerID = @CustomerID";
+
                     using (SqlCommand cmd = new SqlCommand(membershipQuery, conn))
                     {
                         cmd.Parameters.AddWithValue("@CustomerID", customerID);
@@ -303,7 +283,6 @@ namespace PotatoCornerSys
         {
             try
             {
-                // Get points from session (updated from database in LoadCustomerInfo)
                 int points = 0;
                 if (Session["Points"] != null)
                 {
@@ -311,16 +290,11 @@ namespace PotatoCornerSys
                 }
 
                 lblPoints.Text = points.ToString();
-
-                // Calculate points value (1 point = PHP 10)
                 decimal pointsValue = points * 10;
-
-                // Calculate discount power (can use points as discount)
                 lblDiscountPower.Text = pointsValue.ToString("0.00");
             }
             catch (Exception ex)
             {
-                // Handle errors - show 0 points
                 lblPoints.Text = "0";
                 lblDiscountPower.Text = "0.00";
                 System.Diagnostics.Debug.WriteLine("Error loading points: " + ex.Message);
@@ -329,8 +303,7 @@ namespace PotatoCornerSys
 
         private void LoadFavoriteOrder()
         {
-            // MOCK DATA - Favorite order feature removed from new layout
-            // Keeping method for compatibility
+            // Keeping for compatibility
         }
 
         private void LoadOrderHistory()
@@ -340,10 +313,8 @@ namespace PotatoCornerSys
 
         private void LoadOrderHistory(string searchOrderID)
         {
-            // First, update order statuses in database based on time
             UpdateOrderStatusInDatabase();
 
-            // Get sort order from dropdown
             string sortOrder = ddlSortOrder.SelectedValue;
 
             try
@@ -354,7 +325,6 @@ namespace PotatoCornerSys
                 {
                     conn.Open();
 
-                    // Get CustomerID from session
                     int customerID = 0;
                     if (Session["CustomerID"] != null)
                     {
@@ -363,19 +333,16 @@ namespace PotatoCornerSys
 
                     if (customerID == 0)
                     {
-                        // No customer ID - show empty
                         pnlNoOrders.Visible = true;
                         return;
                     }
 
-                    // Build WHERE clause with optional search
                     string whereClause = "WHERE o.CustomerID = @CustomerID";
                     if (!string.IsNullOrEmpty(searchOrderID))
                     {
                         whereClause += " AND o.OrderID = @SearchOrderID";
                     }
 
-                    // Query #9: ORDER BY QUERY - Get Customer Order History with sorting
                     string query = @"
                         SELECT 
                             o.OrderID,
@@ -424,7 +391,6 @@ namespace PotatoCornerSys
                             }
                             else
                             {
-                                // Invalid search - show no results
                                 pnlNoOrders.Visible = true;
                                 return;
                             }
@@ -451,22 +417,19 @@ namespace PotatoCornerSys
             }
             catch (Exception ex)
             {
-                // Handle database errors - show empty for now
                 pnlNoOrders.Visible = true;
-                // For debugging: System.Diagnostics.Debug.WriteLine("Error loading order history: " + ex.Message);
+                System.Diagnostics.Debug.WriteLine("Error loading order history: " + ex.Message);
             }
         }
 
         protected void btnUsePoints_Click(object sender, EventArgs e)
         {
-            // Store points usage flag in session for next order
             Session["UsePointsDiscount"] = "true";
             Session["PointsDiscount"] = lblDiscountPower.Text;
 
             lblPointsMsg.Text = "✓ Points will be applied as discount on your next order!";
             lblPointsMsg.Visible = true;
 
-            // Redirect to order page after 2 seconds
             Response.AddHeader("REFRESH", "2;URL=Order.aspx");
         }
 
@@ -484,7 +447,6 @@ namespace PotatoCornerSys
                     {
                         conn.Open();
 
-                        // Query #10: CUSTOM QUERY - Reorder System (Load Previous Order Items)
                         string query = @"
                             SELECT 
                                 oi.ProductID,
@@ -519,7 +481,7 @@ namespace PotatoCornerSys
                                         Size = reader["SizeName"]?.ToString() ?? "Regular",
                                         Flavor = reader["FlavorName"]?.ToString() ?? "Salt",
                                         Qty = Convert.ToInt32(reader["Quantity"]),
-                                        UnitPrice = Convert.ToDecimal(reader["CurrentPrice"]) // Use current price
+                                        UnitPrice = Convert.ToDecimal(reader["CurrentPrice"])
                                     });
                                 }
                             }
@@ -527,23 +489,18 @@ namespace PotatoCornerSys
 
                         if (cart.Count > 0)
                         {
-                            // Store cart in session
                             Session["Cart"] = cart;
                             Session["ReorderMessage"] = "✓ Previous order loaded! Review and confirm your order.";
-
-                            // Redirect to order page
                             Response.Redirect("Order.aspx");
                         }
                         else
                         {
-                            // No items found - use fallback
                             LoadFallbackReorderItems(orderID);
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    // Database error - use fallback
                     System.Diagnostics.Debug.WriteLine("Error loading reorder items: " + ex.Message);
                     LoadFallbackReorderItems(orderID);
                 }
@@ -558,7 +515,6 @@ namespace PotatoCornerSys
                     {
                         conn.Open();
 
-                        // Query #4: DELETE QUERY - Remove Cancelled Order (update status instead of delete)
                         string updateQuery = "UPDATE Orders SET OrderStatus = 'Cancelled' WHERE OrderID = @OrderID";
 
                         using (SqlCommand cmd = new SqlCommand(updateQuery, conn))
@@ -566,18 +522,12 @@ namespace PotatoCornerSys
                             cmd.Parameters.AddWithValue("@OrderID", Convert.ToInt32(orderID));
                             int rowsAffected = cmd.ExecuteNonQuery();
 
-                            if (rowsAffected > 0)
-                            {
-                                Session["CancelMessage"] = "✓ Order #" + orderID + " has been cancelled successfully.";
-                            }
-                            else
-                            {
-                                Session["CancelMessage"] = "✗ Failed to cancel order #" + orderID + ".";
-                            }
+                            Session["CancelMessage"] = rowsAffected > 0
+                                ? "✓ Order #" + orderID + " has been cancelled successfully."
+                                : "✗ Failed to cancel order #" + orderID + ".";
                         }
                     }
 
-                    // Reload the page to show updated order status
                     Response.Redirect(Request.RawUrl);
                 }
                 catch (Exception ex)
@@ -590,44 +540,39 @@ namespace PotatoCornerSys
 
         private void LoadFallbackReorderItems(string orderID)
         {
-            // Fallback reorder items when database query fails
-            List<Order.CartItem> cart = new List<Order.CartItem>();
-
-            // Default items based on order ID pattern
-            cart.Add(new Order.CartItem
+            List<Order.CartItem> cart = new List<Order.CartItem>
             {
-                Product = "French Fries",
-                Size = "Large",
-                Flavor = "Cheese",
-                Qty = 1,
-                UnitPrice = 58m
-            });
+                new Order.CartItem
+                {
+                    Product   = "French Fries",
+                    Size      = "Large",
+                    Flavor    = "Cheese",
+                    Qty       = 1,
+                    UnitPrice = 58m
+                }
+            };
 
-            // Store cart in session
             Session["Cart"] = cart;
             Session["ReorderMessage"] = "✓ Sample order loaded! Review and confirm your order.";
-
-            // Redirect to order page
             Response.Redirect("Order.aspx");
         }
 
-        // Helper method to get order status based on time
         protected string GetOrderStatus(DateTime orderDate, string dbStatus)
         {
-            // Use the actual database status instead of time-based calculation
             switch (dbStatus?.ToLower())
             {
                 case "delivered":
                     return "<span class='order-status status-delivered'>Delivered</span>";
                 case "confirmed":
                     return "<span class='order-status status-confirmed'>Confirmed</span>";
+                case "cancelled":
+                    return "<span class='order-status status-cancelled'>Cancelled</span>";
                 case "pending":
                 default:
                     return "<span class='order-status status-pending'>Pending</span>";
             }
         }
 
-        // New method to update order status in database
         private void UpdateOrderStatusInDatabase()
         {
             try
@@ -638,7 +583,6 @@ namespace PotatoCornerSys
                 {
                     conn.Open();
 
-                    // Get CustomerID from session
                     int customerID = 0;
                     if (Session["CustomerID"] != null)
                     {
@@ -647,7 +591,6 @@ namespace PotatoCornerSys
 
                     if (customerID == 0) return;
 
-                    // First, update orders that should be confirmed (5+ minutes old, still pending)
                     string confirmQuery = @"
                         UPDATE Orders 
                         SET OrderStatus = 'Confirmed', 
@@ -660,15 +603,9 @@ namespace PotatoCornerSys
                     using (SqlCommand cmd = new SqlCommand(confirmQuery, conn))
                     {
                         cmd.Parameters.AddWithValue("@CustomerID", customerID);
-                        int confirmedRows = cmd.ExecuteNonQuery();
-                        
-                        if (confirmedRows > 0)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Updated {confirmedRows} orders to Confirmed status");
-                        }
+                        cmd.ExecuteNonQuery();
                     }
 
-                    // Then, update orders that should be delivered (15+ minutes old)
                     string deliverQuery = @"
                         UPDATE Orders 
                         SET OrderStatus = 'Delivered', 
@@ -684,92 +621,41 @@ namespace PotatoCornerSys
                     using (SqlCommand cmd = new SqlCommand(deliverQuery, conn))
                     {
                         cmd.Parameters.AddWithValue("@CustomerID", customerID);
-                        int deliveredRows = cmd.ExecuteNonQuery();
-                        
-                        if (deliveredRows > 0)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Updated {deliveredRows} orders to Delivered status");
-                        }
-                    }
-
-                    // Debug: Show what orders exist for this customer
-                    string debugQuery = @"
-                        SELECT OrderID, OrderDate, OrderStatus, ConfirmedAt, DeliveredAt,
-                               DATEDIFF(MINUTE, OrderDate, GETDATE()) as MinutesOld
-                        FROM Orders 
-                        WHERE CustomerID = @CustomerID 
-                        ORDER BY OrderDate DESC";
-
-                    using (SqlCommand cmd = new SqlCommand(debugQuery, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@CustomerID", customerID);
-                        using (SqlDataReader reader = cmd.ExecuteReader())
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Orders for Customer {customerID}:");
-                            while (reader.Read())
-                            {
-                                System.Diagnostics.Debug.WriteLine($"  Order {reader["OrderID"]}: {reader["OrderStatus"]}, {reader["MinutesOld"]} mins old, Confirmed: {reader["ConfirmedAt"]}, Delivered: {reader["DeliveredAt"]}");
-                            }
-                        }
+                        cmd.ExecuteNonQuery();
                     }
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine("Error updating order status: " + ex.Message);
-                // Also show error in UI for debugging
-                if (HttpContext.Current != null)
-                {
-                    HttpContext.Current.Response.Write($"<script>console.log('Order update error: {ex.Message}');</script>");
-                }
             }
         }
 
-        // Helper method to show cancel button only if order is within 10 minutes
         protected string GetCancelButton(DateTime orderDate, string orderID)
         {
             TimeSpan timeSinceOrder = DateTime.Now - orderDate;
-
             if (timeSinceOrder.TotalMinutes <= 10)
             {
                 return $"<button type='button' class='btn-cancel' onclick='cancelOrder({orderID})'>Cancel Order</button>";
             }
-
             return "";
         }
 
-        // ORDER SUMMARY BUTTON CLICK - Redirect to OrderSummary.aspx
         protected void btnOrderSummary_Click(object sender, EventArgs e)
         {
             Response.Redirect("OrderSummary.aspx");
         }
 
-        // SORT DROPDOWN CHANGE - Reload order history with new sort order
         protected void ddlSortOrder_SelectedIndexChanged(object sender, EventArgs e)
         {
-            // Check if there's a search term
             string searchText = txtSearchOrderID.Text.Trim();
-            if (!string.IsNullOrEmpty(searchText))
-            {
-                LoadOrderHistory(searchText);
-            }
-            else
-            {
-                LoadOrderHistory();
-            }
+            LoadOrderHistory(!string.IsNullOrEmpty(searchText) ? searchText : null);
         }
 
         protected void btnSearch_Click(object sender, EventArgs e)
         {
             string searchOrderID = txtSearchOrderID.Text.Trim();
-            if (!string.IsNullOrEmpty(searchOrderID))
-            {
-                LoadOrderHistory(searchOrderID);
-            }
-            else
-            {
-                LoadOrderHistory();
-            }
+            LoadOrderHistory(!string.IsNullOrEmpty(searchOrderID) ? searchOrderID : null);
         }
 
         protected void btnClearSearch_Click(object sender, EventArgs e)
@@ -788,26 +674,21 @@ namespace PotatoCornerSys
                 {
                     conn.Open();
 
-                    // Get CustomerID from session
                     int customerID = 0;
                     if (Session["CustomerID"] != null)
                     {
                         int.TryParse(Session["CustomerID"].ToString(), out customerID);
                     }
 
-                    if (customerID == 0)
-                    {
-                        return;
-                    }
+                    if (customerID == 0) return;
 
-                    // Delete all orders for this customer
-                    string deleteOrderItemsQuery = @"
+                    string deleteItemsQuery = @"
                         DELETE FROM OrderItems 
                         WHERE OrderID IN (SELECT OrderID FROM Orders WHERE CustomerID = @CustomerID)";
 
                     string deleteOrdersQuery = "DELETE FROM Orders WHERE CustomerID = @CustomerID";
 
-                    using (SqlCommand cmd = new SqlCommand(deleteOrderItemsQuery, conn))
+                    using (SqlCommand cmd = new SqlCommand(deleteItemsQuery, conn))
                     {
                         cmd.Parameters.AddWithValue("@CustomerID", customerID);
                         cmd.ExecuteNonQuery();
@@ -819,13 +700,11 @@ namespace PotatoCornerSys
                         cmd.ExecuteNonQuery();
                     }
 
-                    // Reload the page to show empty history
                     LoadOrderHistory();
                 }
             }
             catch (Exception ex)
             {
-                // Handle error silently or show message
                 System.Diagnostics.Debug.WriteLine("Error clearing history: " + ex.Message);
             }
         }
@@ -835,10 +714,7 @@ namespace PotatoCornerSys
             try
             {
                 string orderID = hdnCancelOrderID.Value;
-                if (string.IsNullOrEmpty(orderID))
-                {
-                    return;
-                }
+                if (string.IsNullOrEmpty(orderID)) return;
 
                 string connectionString = ConfigurationManager.ConnectionStrings["PotatoCornerDB"].ConnectionString;
 
@@ -846,7 +722,6 @@ namespace PotatoCornerSys
                 {
                     conn.Open();
 
-                    // Update order status to Cancelled
                     string updateQuery = "UPDATE Orders SET OrderStatus = 'Cancelled' WHERE OrderID = @OrderID";
 
                     using (SqlCommand cmd = new SqlCommand(updateQuery, conn))
@@ -856,7 +731,6 @@ namespace PotatoCornerSys
                     }
                 }
 
-                // Reload order history
                 LoadOrderHistory();
             }
             catch (Exception ex)
@@ -864,6 +738,5 @@ namespace PotatoCornerSys
                 System.Diagnostics.Debug.WriteLine("Error cancelling order: " + ex.Message);
             }
         }
-
     }
 }

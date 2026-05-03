@@ -16,10 +16,8 @@ namespace PotatoCornerSys
         {
             if (!IsPostBack)
             {
-                // Check if user is already a royalty member
                 if (IsAlreadyRoyaltyMember())
                 {
-                    // Show styled popup modal instead of alert
                     string script = @"
                         document.addEventListener('DOMContentLoaded', function() {
                             showAlreadyMemberModal();
@@ -35,29 +33,21 @@ namespace PotatoCornerSys
         {
             try
             {
-                // Check session first
                 if (Session["HasRoyaltyMembership"] != null && (bool)Session["HasRoyaltyMembership"])
-                {
                     return true;
-                }
 
-                // Check database
                 string connectionString = ConfigurationManager.ConnectionStrings["PotatoCornerDB"].ConnectionString;
 
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
 
-                    // Get CustomerID from session
                     int customerID = 0;
                     if (Session["CustomerID"] != null)
-                    {
                         int.TryParse(Session["CustomerID"].ToString(), out customerID);
-                    }
 
                     if (customerID == 0) return false;
 
-                    // Check if customer already has royalty membership
                     string query = @"
                         SELECT COUNT(*) 
                         FROM Membership m
@@ -78,6 +68,7 @@ namespace PotatoCornerSys
                 return false;
             }
         }
+
         protected void btnPaymentMethod_Click(object sender, EventArgs e)
         {
             Button btn = (Button)sender;
@@ -109,6 +100,15 @@ namespace PotatoCornerSys
                     return;
                 }
 
+                // Validate image file type
+                string fileExtension = Path.GetExtension(fileUploadPicture.FileName).ToLower();
+                string[] allowedExtensions = { ".jpg", ".jpeg", ".png", ".gif" };
+                if (!allowedExtensions.Contains(fileExtension))
+                {
+                    ShowMessage("Please upload a valid image file (JPG, JPEG, PNG, GIF).", false);
+                    return;
+                }
+
                 if (string.IsNullOrEmpty(hdnPaymentMethod.Value))
                 {
                     ShowMessage("Please select a payment method.", false);
@@ -126,14 +126,15 @@ namespace PotatoCornerSys
                 Random random = new Random();
                 string royaltyNumber = "PC" + random.Next(10000, 99999).ToString();
 
-                // Save image
-                string fileExtension = Path.GetExtension(fileUploadPicture.FileName).ToLower();
+                // ✅ Read image as bytes (for DB storage)
+                byte[] imageBytes = fileUploadPicture.FileBytes;
+                string fileName = royaltyNumber + fileExtension;
+
+                // Also save to Uploads folder (optional but good for backup)
                 string uploadsFolder = Server.MapPath("~/Uploads/");
                 if (!Directory.Exists(uploadsFolder))
-                {
                     Directory.CreateDirectory(uploadsFolder);
-                }
-                string fileName = royaltyNumber + fileExtension;
+
                 string filePath = Path.Combine(uploadsFolder, fileName);
                 fileUploadPicture.SaveAs(filePath);
 
@@ -143,12 +144,9 @@ namespace PotatoCornerSys
                 {
                     conn.Open();
 
-                    // Create or get customer ID
                     int customerID = 0;
                     if (Session["CustomerID"] != null)
-                    {
                         int.TryParse(Session["CustomerID"].ToString(), out customerID);
-                    }
 
                     if (customerID == 0)
                     {
@@ -172,17 +170,19 @@ namespace PotatoCornerSys
                         }
                     }
 
-                    // Now insert using the actual column names that exist in your database
+                    // ✅ INSERT including ProfilePicture (binary) and PictureFileName
                     string insertQuery = @"
-                        INSERT INTO Membership (CustomerID, MembershipNumber, Points, RegistrationDate)
-                        VALUES (@CustomerID, @MembershipNumber, @Points, @RegistrationDate)";
+                        INSERT INTO Membership (CustomerID, MembershipNumber, Points, RegistrationDate, ProfilePicture, PictureFileName)
+                        VALUES (@CustomerID, @MembershipNumber, @Points, @RegistrationDate, @ProfilePicture, @PictureFileName)";
 
                     using (SqlCommand cmd = new SqlCommand(insertQuery, conn))
                     {
                         cmd.Parameters.AddWithValue("@CustomerID", customerID);
-                        cmd.Parameters.AddWithValue("@MembershipNumber", royaltyNumber); // Using MembershipNumber instead of RoyaltyNumber
-                        cmd.Parameters.AddWithValue("@Points", 0); // Starting with 0 points
+                        cmd.Parameters.AddWithValue("@MembershipNumber", royaltyNumber);
+                        cmd.Parameters.AddWithValue("@Points", 0);
                         cmd.Parameters.AddWithValue("@RegistrationDate", DateTime.Now);
+                        cmd.Parameters.Add("@ProfilePicture", System.Data.SqlDbType.VarBinary).Value = imageBytes; // ✅ Binary image
+                        cmd.Parameters.AddWithValue("@PictureFileName", fileName);                                  // ✅ File name
 
                         int rowsAffected = cmd.ExecuteNonQuery();
 
@@ -211,8 +211,6 @@ namespace PotatoCornerSys
                             Session["MembershipLevel"] = "Royalty";
 
                             ShowMessage("Registration successful! Your membership number is: " + royaltyNumber, true);
-                            
-                            // Redirect after 2 seconds
                             Response.AddHeader("REFRESH", "2;URL=MembershipReceipt.aspx");
                         }
                         else

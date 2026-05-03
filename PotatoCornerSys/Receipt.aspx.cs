@@ -26,34 +26,28 @@ namespace PotatoCornerSys
                 lblContact.Text = Session["OrderContact"].ToString();
                 lblDelivery.Text = Session["OrderDelivery"].ToString();
                 lblOrderDate.Text = DateTime.Now.ToString("MMMM dd, yyyy hh:mm tt");
-                lblOrderNo.Text = new Random().Next(10000, 99999).ToString();
+                lblOrderNo.Text = Session["OrderID"]?.ToString() ?? new Random().Next(10000, 99999).ToString();
 
                 // Royalty
                 bool isRoyalty = Session["OrderIsRoyalty"]?.ToString() == "true";
                 pnlRoyalty.Visible = isRoyalty;
                 pnlNoRoyalty.Visible = !isRoyalty;
+
                 if (isRoyalty && Session["RoyaltyNo"] != null)
                     lblRoyaltyNo.Text = Session["RoyaltyNo"].ToString();
 
-                // Cart items
-                var cart = Session["Cart"] as List<CartItem>;
+                // Totals from session
+                lblSubtotal.Text = Session["OrderSubtotal"]?.ToString() ?? "0.00";
+                lblDiscount.Text = Session["OrderDiscount"]?.ToString() ?? "0.00";
+                lblDeliveryFee.Text = Session["OrderDeliveryFee"]?.ToString() ?? "0.00";
+                lblTotal.Text = Session["OrderTotal"]?.ToString() ?? "0.00";
+
+                // ✅ Read from ReceiptCart (saved before cart was cleared in Order.aspx)
+                var cart = Session["ReceiptCart"] as List<CartItem>;
                 if (cart != null && cart.Count > 0)
                 {
                     rptItems.DataSource = cart;
                     rptItems.DataBind();
-
-                    decimal subtotal = 0;
-                    foreach (var item in cart) subtotal += item.LineTotal;
-
-                    decimal discount = isRoyalty ? subtotal * 0.10m : 0;
-                    bool isDelivery = lblDelivery.Text == "Delivery";
-                    decimal deliveryFee = isDelivery ? 50m : 0;
-                    decimal total = subtotal - discount + deliveryFee;
-
-                    lblSubtotal.Text = subtotal.ToString("0.00");
-                    lblDiscount.Text = discount.ToString("0.00");
-                    lblDeliveryFee.Text = deliveryFee.ToString("0.00");
-                    lblTotal.Text = total.ToString("0.00");
                 }
 
                 // Payment & points
@@ -62,7 +56,8 @@ namespace PotatoCornerSys
                 lblChange.Text = Session["Change"]?.ToString() ?? "0.00";
                 lblPointsEarned.Text = Session["PointsEarned"]?.ToString() ?? "0";
 
-                // Clear cart after displaying
+                // ✅ Clear both after displaying
+                Session["ReceiptCart"] = null;
                 Session["Cart"] = null;
             }
         }
@@ -72,5 +67,4 @@ namespace PotatoCornerSys
             Response.Redirect("~/Default.aspx");
         }
     }
-    
 }

@@ -13,8 +13,8 @@ namespace PotatoCornerSys
     {
         protected void Page_Load(object sender, EventArgs e)
         {
-
         }
+
         protected void btnLogin_Click(object sender, EventArgs e)
         {
             string username = txtUsername.Text.Trim();
@@ -27,7 +27,6 @@ namespace PotatoCornerSys
                 return;
             }
 
-            // Database validation  SELECT query
             try
             {
                 string connectionString = ConfigurationManager.ConnectionStrings["PotatoCornerDB"].ConnectionString;
@@ -36,7 +35,6 @@ namespace PotatoCornerSys
                 {
                     conn.Open();
 
-                    // SELECT query 
                     string query = @"
                         SELECT CustomerID, UserName, Fullname, Email, PhoneNumber, [Address], Points, MembershipLevel
                         FROM USERS 
@@ -45,13 +43,12 @@ namespace PotatoCornerSys
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@Username", username);
-                        cmd.Parameters.AddWithValue("@Password", password); 
+                        cmd.Parameters.AddWithValue("@Password", password);
 
                         using (SqlDataReader reader = cmd.ExecuteReader())
                         {
                             if (reader.Read())
                             {
-                                // Login successful - store user data in session
                                 Session["CustomerID"] = reader["CustomerID"].ToString();
                                 Session["Username"] = reader["UserName"].ToString();
                                 Session["Name"] = reader["Fullname"].ToString();
@@ -61,20 +58,17 @@ namespace PotatoCornerSys
                                 Session["Points"] = reader["Points"].ToString();
                                 Session["MembershipLevel"] = reader["MembershipLevel"].ToString();
                                 Session["IsLoggedIn"] = true;
-                                Session["MemberSince"] = DateTime.Now.ToString("MMM dd, yyyy"); // You can add this field to database later
+                                Session["MemberSince"] = DateTime.Now.ToString("MMM dd, yyyy");
 
                                 if (reader["MembershipLevel"].ToString() == "Royalty")
                                 {
                                     Session["HasRoyaltyMembership"] = true;
-                                 
                                 }
 
-                                
                                 Response.Redirect("~/Default.aspx");
                             }
                             else
                             {
-                            
                                 lblError.Text = "Invalid email or password. Please try again.";
                                 lblError.Visible = true;
                             }
@@ -84,13 +78,11 @@ namespace PotatoCornerSys
             }
             catch (Exception ex)
             {
-      
                 lblError.Text = "Login system temporarily unavailable. Please try again later.";
                 lblError.Visible = true;
-
-              
             }
         }
+
         protected void lnkRegister_Click(object sender, EventArgs e)
         {
             Response.Redirect("~/Register.aspx");
