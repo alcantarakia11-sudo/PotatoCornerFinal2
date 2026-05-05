@@ -1,399 +1,461 @@
-﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Menu.aspx.cs" Inherits="PotatoCornerSys.Menu" %>
+<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Menu.aspx.cs" Inherits="PotatoCornerSys.Menu" %>
 
 <!DOCTYPE html>
+
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head runat="server">
     <title>Potato Corner - Menu</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        :root {
-            --green-dark:  #0d7336;
-            --green:       #119247;
-            --yellow:      #f5c800;
-            --yellow-lite: #ffd700;
-            --red:         #e8401c;
-            --red-lite:    #ff6b47;
-            --bg:          #e8e8e8;
-            --white:       #ffffff;
-            --text-dark:   #1a2a1a;
-            --text-mid:    #333;
+        
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: #e8e8e8;
+            min-height: 100vh;
         }
-
-        html, body {
-            width: 100%; height: 100%;
-            overflow: hidden;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: var(--bg);
+        
+        /* MAIN CONTAINER */
+        .menu-container { 
+            max-width: 1600px; 
+            margin: 0 auto; 
+            padding: 40px 40px;
         }
-
-        .shell {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            min-height: 0;
-        }
-
-        .navbar {
-            flex: 0 0 auto;
-            background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
-            padding: 15px 50px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 5px solid var(--yellow);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-            z-index: 100;
-        }
-
-        .navbar-logo img {
-            height: 85px;
-            filter: drop-shadow(0 2px 6px rgba(0,0,0,0.2));
-            transition: transform 0.3s;
-        }
-        .navbar-logo img:hover { transform: scale(1.06); }
-
-        .navbar-links {
-            display: flex;
-            align-items: center;
-            gap: 36px;
-            list-style: none;
-        }
-
-        .navbar-links a {
-            color: var(--white);
-            text-decoration: none;
-            font-size: 15px;
-            font-weight: 700;
-            letter-spacing: 0.4px;
-            transition: color 0.2s, transform 0.2s;
-            position: relative;
-        }
-        .navbar-links a:hover { color: var(--yellow); transform: translateY(-2px); }
-        .navbar-links a::after {
-            content: '';
-            position: absolute;
-            bottom: -4px; left: 0;
-            width: 0; height: 2px;
-            background: var(--yellow);
-            transition: width 0.3s;
-        }
-        .navbar-links a:hover::after { width: 100%; }
-
-        .hero {
-            flex: 0 0 auto;
-            padding: 12px 40px;
-            text-align: center;
-            background: var(--bg);
-        }
-
-        .hero-content {
-            max-width: 860px;
-            margin: 0 auto;
-        }
-
-        .hero-banner {
-            background: linear-gradient(135deg, var(--red) 0%, var(--red-lite) 100%);
-            padding: 7px 32px;
-            border-radius: 20px;
-            box-shadow: 0 6px 24px rgba(232,64,28,0.28);
-        }
-
-        .hero-banner h1 {
-            font-size: 24px;
-            color: var(--white);
+        
+        /* PAGE TITLE WITH ORANGE CONTAINER */
+        .page-title {
+            font-size: 48px;
             font-weight: 900;
+            color: white;
+            margin-bottom: 50px;
+            text-align: center;
+            background: #e8401c;
+            padding: 15px 40px;
+            border-radius: 16px;
             text-transform: uppercase;
             letter-spacing: 4px;
-            text-shadow: 0 2px 8px rgba(0,0,0,0.25);
+            box-shadow: 0 6px 20px rgba(232,64,28,0.3);
         }
-
-        .menu-container {
-            flex: 1 1 0;
-            min-height: 0;
-            padding: 14px 36px;
-            background: var(--bg);
-        }
-
-        .product-grid {
-            display: flex;
-            height: 100%;
-            gap: 20px;
-            min-height: 0;
-        }
-
-        .product-card {
-            flex: 1 1 0;
-            min-width: 0;
-            background: linear-gradient(160deg, var(--green) 0%, var(--green-dark) 100%);
-            border-radius: 22px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 12px 40px rgba(0,0,0,0.22);
-            transition: transform 0.35s, box-shadow 0.35s;
-        }
-
-        .product-card:hover {
-            transform: translateY(-6px) scale(1.015);
-            box-shadow: 0 20px 56px rgba(0,0,0,0.3);
-        }
-
-        .product-image {
-            flex: 0 0 auto;
-            background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
-            display: flex;
+        
+        .navbar { 
+            background: linear-gradient(135deg, #119247 0%, #0d7336 100%);
+            padding: 15px 50px; 
+            display: flex; 
             align-items: center;
-            justify-content: center;
-            padding: 10px;
-            position: relative;
+            justify-content: space-between; 
+            border-bottom: 5px solid #f5c800;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
         }
-
-        .product-image::after {
-            content: '';
-            position: absolute;
-            bottom: 0; left: 0;
-            width: 100%; height: 3px;
-            background: linear-gradient(90deg, var(--yellow), var(--yellow-lite));
-        }
-
-        .product-image img {
-            height: 100px;
-            width: 100%;
-            object-fit: contain;
-            filter: drop-shadow(0 6px 16px rgba(0,0,0,0.18));
+        
+        .navbar-logo img { 
+            height: 85px; 
+            filter: drop-shadow(0 2px 6px rgba(0,0,0,0.2)); 
             transition: transform 0.3s;
         }
-        .product-card:hover .product-image img { transform: scale(1.08) rotate(1.5deg); }
-
-        .product-name {
-            flex: 0 0 auto;
-            font-size: clamp(14px, 1.6vw, 22px);
-            color: var(--yellow);
-            font-weight: 900;
-            text-transform: uppercase;
-            text-align: center;
-            padding: 8px 12px 4px;
-            letter-spacing: 2px;
-            text-shadow: 0 2px 8px rgba(0,0,0,0.28);
+        
+        .navbar-logo img:hover {
+            transform: scale(1.05);
         }
-
-        .product-content {
-            flex: 1 1 0;
-            min-height: 0;
-            overflow-y: auto;
-            padding: 6px 10px 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            scrollbar-width: thin;
-            scrollbar-color: rgba(255,255,255,0.3) transparent;
-        }
-
-        .card-section {
-            background: rgba(255,255,255,0.95);
-            border-radius: 12px;
-            padding: 10px 12px;
-            flex-shrink: 0;
-        }
-
-        .section-title {
-            font-size: 11px;
-            font-weight: 800;
-            color: var(--green);
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            border-bottom: 2px solid var(--yellow);
-            padding-bottom: 5px;
-        }
-
-        .size-list { list-style: none; display: flex; flex-direction: column; gap: 5px; }
-
-        .size-item {
-            display: flex;
-            justify-content: space-between;
+        
+        .navbar-links { 
+            display: flex; 
             align-items: center;
-            padding: 6px 10px;
-            background: #f8f9fa;
-            border: 1.5px solid #e0e0e0;
-            border-radius: 8px;
-            transition: border-color 0.2s, background 0.2s, transform 0.2s;
+            gap: 40px;
+            list-style: none;
         }
-        .size-item:hover {
-            border-color: var(--green);
-            background: #e8f5ee;
-            transform: translateX(4px);
+        
+        .navbar-links a { 
+            color: white; 
+            text-decoration: none; 
+            font-size: 16px;
+            font-weight: 700; 
+            letter-spacing: 0.5px;
+            transition: all 0.3s;
+            position: relative;
         }
-
-        .size-name  { font-weight: 700; color: var(--text-mid); font-size: 12px; }
-        .size-price { font-weight: 900; color: var(--red); font-size: 12px; background: #fff3e0; padding: 2px 9px; border-radius: 10px; }
-
-        .flavor-grid {
+        
+        .navbar-links a:hover { 
+            color: #f5c800; 
+            transform: translateY(-2px);
+        }
+        
+        /* SECTION */
+        .menu-section {
+            margin-bottom: 80px;
+        }
+        
+        .section-header {
+            font-size: 28px;
+            font-weight: 900;
+            color: #119247;
+            margin-bottom: 40px;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            position: relative;
+            padding-bottom: 15px;
+        }
+        
+        .section-header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 4px;
+            background: linear-gradient(90deg, #f5c800 0%, #ffd700 100%);
+            border-radius: 2px;
+        }
+        
+        /* ITEMS GRID - HORIZONTAL LAYOUT */
+        .items-grid {
             display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 60px;
+            justify-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .items-grid.flavors {
+            grid-template-columns: repeat(4, 1fr);
+            gap: 80px;
+            max-width: 1400px;
+        }
+        
+        /* Center items when there are only 2 items (Loopys) */
+        .items-grid:has(.item-card:nth-child(2):last-child) {
             grid-template-columns: repeat(2, 1fr);
-            gap: 6px;
+            max-width: 800px;
         }
-
-        .flavor-tag {
-            background: linear-gradient(135deg, var(--yellow), var(--yellow-lite));
-            color: var(--text-dark);
-            padding: 7px 8px;
-            border-radius: 14px;
+        
+        /* ITEM CARD */
+        .item-card {
             text-align: center;
+            transition: transform 0.3s;
+        }
+        
+        .item-card:hover {
+            transform: translateY(-8px);
+        }
+        
+        /* CIRCULAR FLAVOR IMAGES */
+        .flavor-image {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            overflow: hidden;
+            margin: 0 auto 15px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            transition: all 0.3s;
+        }
+        
+        .item-card:hover .flavor-image {
+            box-shadow: 0 12px 35px rgba(0,0,0,0.25);
+            transform: scale(1.05);
+        }
+        
+        .flavor-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        /* PRODUCT SIZE IMAGES */
+        .size-image {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 15px;
+            transition: all 0.3s;
+        }
+        
+        .item-card:hover .size-image {
+            transform: scale(1.08);
+        }
+        
+        .size-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 8px 20px rgba(0,0,0,0.15));
+        }
+        
+        /* ITEM LABEL */
+        .item-label {
+            font-size: 16px;
             font-weight: 700;
-            font-size: 11px;
-            box-shadow: 0 3px 8px rgba(245,200,0,0.28);
-            transition: transform 0.2s, box-shadow 0.2s;
-            border: 1.5px solid transparent;
+            color: #119247;
+            text-transform: capitalize;
         }
-        .flavor-tag:hover { transform: scale(1.07); border-color: var(--green); }
-
+        
+        /* RESPONSIVE */
+        @media (max-width: 1200px) {
+            .items-grid {
+                gap: 40px;
+            }
+            
+            .items-grid.flavors {
+                gap: 60px;
+            }
+            
+            .flavor-image {
+                width: 150px;
+                height: 150px;
+            }
+            
+            .size-image {
+                width: 170px;
+                height: 170px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .navbar { 
+                flex-direction: column; 
+                gap: 20px; 
+                padding: 20px;
+            }
+            
+            .navbar-links {
+                gap: 20px;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .menu-container {
+                padding: 40px 20px;
+            }
+            
+            .page-title {
+                font-size: 36px;
+            }
+            
+            .items-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 30px;
+            }
+            
+            .items-grid.flavors {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .flavor-image {
+                width: 140px;
+                height: 140px;
+            }
+            
+            .size-image {
+                width: 160px;
+                height: 160px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .items-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .items-grid.flavors {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* FOOTER */
         .footer {
-            flex: 0 0 auto;
-            background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
-            color: var(--white);
+            background: linear-gradient(135deg, #119247 0%, #0d7336 100%);
+            color: white;
             text-align: center;
-            padding: 10px;
-            border-top: 5px solid var(--yellow);
+            padding: 60px 40px;
+            font-size: 15px;
+            border-top: 5px solid #f5c800;
         }
 
-        .footer-links { margin-bottom: 6px; }
-        .footer-links a {
-            color: var(--yellow);
+        .footer a {
+            color: #f5c800;
             text-decoration: none;
-            margin: 0 10px;
+            margin: 0 15px;
+            font-size: 15px;
             font-weight: 600;
-            font-size: 14px;
+            transition: all 0.3s;
         }
-        .footer-links a:hover { color: var(--white); }
-        .footer-copy { font-size: 14px; color: #ccc; }
+
+        .footer a:hover {
+            color: #fff;
+            text-shadow: 0 2px 8px rgba(245,200,0,0.5);
+        }
+
+        .footer .footer-links {
+            margin-bottom: 24px;
+        }
+
+        .footer .footer-copy {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #ccc;
+        }
     </style>
 </head>
 <body>
-<form id="form1" runat="server">
-<div class="shell">
-
-    <div class="navbar">
-        <div class="navbar-logo">
-            <img src="logopotcor.png" alt="Potato Corner" />
-        </div>
-        <ul class="navbar-links">
-            <li><a href="Default.aspx">Home</a></li>
-            <li><a href="Menu.aspx">Menu</a></li>
-            <li><a href="Membership.aspx">Membership</a></li>
-            <li><a href="AboutUs.aspx">About Us</a></li>
-            <li><a href="Order.aspx">Order Now</a></li>
-            <li><a href="Profile.aspx">Profile</a></li>
-        </ul>
-    </div>
-
-    <div class="hero">
-        <div class="hero-content">
-            <div class="hero-banner">
-                <h1>MENU</h1>
+    <form id="form1" runat="server">
+        <div class="navbar">
+            <div class="navbar-logo">
+                <img src="logopotcor.png" alt="Potato Corner" />
             </div>
+            <ul class="navbar-links">
+                <li><a href="Default.aspx">Home</a></li>
+                <li><a href="Menu.aspx">Menu</a></li>
+                <li><a href="Membership.aspx">Membership</a></li>
+                <li><a href="AboutUs.aspx">About Us</a></li>
+                <li><a href="Order.aspx">Order Now</a></li>
+                <li><a href="Profile.aspx">Profile</a></li>
+            </ul>
         </div>
-    </div>
-
-    <div class="menu-container">
-        <div class="product-grid">
-
-            <!-- FRENCH FRIES -->
-            <div class="product-card">
-                <div class="product-image">
-                    <img src="finalhomepage.jpg" alt="French Fries" />
-                </div>
-                <div class="product-name">French Fries</div>
-                <div class="product-content">
-                    <div class="card-section">
-                        <div class="section-title">Sizes &amp; Prices</div>
-                        <ul class="size-list">
-                            <li class="size-item"><span class="size-name">Regular</span><span class="size-price">PHP 39</span></li>
-                            <li class="size-item"><span class="size-name">Large</span><span class="size-price">PHP 58</span></li>
-                            <li class="size-item"><span class="size-name">Jumbo</span><span class="size-price">PHP 97</span></li>
-                            <li class="size-item"><span class="size-name">Mega</span><span class="size-price">PHP 135</span></li>
-                            <li class="size-item"><span class="size-name">Giga</span><span class="size-price">PHP 198</span></li>
-                            <li class="size-item"><span class="size-name">Terra</span><span class="size-price">PHP 228</span></li>
-                        </ul>
-                    </div>
-                    <div class="card-section">
-                        <div class="section-title">Available Flavors</div>
-                        <div class="flavor-grid">
-                            <div class="flavor-tag">Sour Cream</div>
-                            <div class="flavor-tag">BBQ</div>
-                            <div class="flavor-tag">Cheese</div>
-                            <div class="flavor-tag">Salt</div>
+        
+        <div class="menu-container">
+            <h1 class="page-title">Menu</h1>
+            
+            <!-- FLAVORS SECTION -->
+            <div class="menu-section">
+                <h2 class="section-header">Flavors</h2>
+                <div class="items-grid flavors">
+                    <div class="item-card">
+                        <div class="flavor-image">
+                            <img src="cheese.png" alt="Cheese" />
                         </div>
+                        <div class="item-label">Cheese</div>
                     </div>
-                </div>
-            </div>
-
-            <!-- CHICKEN POPS -->
-            <div class="product-card">
-                <div class="product-image">
-                    <img src="homeimg2.png" alt="Chicken Pops" />
-                </div>
-                <div class="product-name">Chicken Pops</div>
-                <div class="product-content">
-                    <div class="card-section">
-                        <div class="section-title">Sizes &amp; Prices</div>
-                        <ul class="size-list">
-                            <li class="size-item"><span class="size-name">Solo</span><span class="size-price">PHP 75</span></li>
-                            <li class="size-item"><span class="size-name">Large Mix</span><span class="size-price">PHP 95</span></li>
-                            <li class="size-item"><span class="size-name">Mega Mix</span><span class="size-price">PHP 199</span></li>
-                        </ul>
-                    </div>
-                    <div class="card-section">
-                        <div class="section-title">Available Flavors</div>
-                        <div class="flavor-grid">
-                            <div class="flavor-tag">Sour Cream</div>
-                            <div class="flavor-tag">BBQ</div>
-                            <div class="flavor-tag">Cheese</div>
-                            <div class="flavor-tag">Salt</div>
+                    
+                    <div class="item-card">
+                        <div class="flavor-image">
+                            <img src="bbqq.png" alt="BBQ" />
                         </div>
+                        <div class="item-label">BBQ</div>
                     </div>
-                </div>
-            </div>
-
-            <!-- LOOPYS -->
-            <div class="product-card">
-                <div class="product-image">
-                    <img src="homepageimg.jpg" alt="Loopys" />
-                </div>
-                <div class="product-name">Loopys</div>
-                <div class="product-content">
-                    <div class="card-section">
-                        <div class="section-title">Sizes &amp; Prices</div>
-                        <ul class="size-list">
-                            <li class="size-item"><span class="size-name">Large</span><span class="size-price">PHP 75</span></li>
-                            <li class="size-item"><span class="size-name">Mega</span><span class="size-price">PHP 135</span></li>
-                        </ul>
-                    </div>
-                    <div class="card-section">
-                        <div class="section-title">Available Flavors</div>
-                        <div class="flavor-grid">
-                            <div class="flavor-tag">Sour Cream</div>
-                            <div class="flavor-tag">BBQ</div>
-                            <div class="flavor-tag">Cheese</div>
-                            <div class="flavor-tag">Salt</div>
+                    
+                    <div class="item-card">
+                        <div class="flavor-image">
+                            <img src="chilibbq.png" alt="Chili BBQ" />
                         </div>
+                        <div class="item-label">ChiliBBQ</div>
+                    </div>
+                    
+                    <div class="item-card">
+                        <div class="flavor-image">
+                            <img src="sourcream.png" alt="Sour Cream" />
+                        </div>
+                        <div class="item-label">Sour Cream</div>
                     </div>
                 </div>
             </div>
-
+            
+            <!-- FRIES SECTION -->
+            <div class="menu-section">
+                <h2 class="section-header">Fries</h2>
+                <div class="items-grid">
+                    <div class="item-card">
+                        <div class="size-image">
+                            <img src="regularfries.png" alt="Regular" />
+                        </div>
+                        <div class="item-label">Regular</div>
+                    </div>
+                    
+                    <div class="item-card">
+                        <div class="size-image">
+                            <img src="large.png" alt="Large" />
+                        </div>
+                        <div class="item-label">Large</div>
+                    </div>
+                    
+                    <div class="item-card">
+                        <div class="size-image">
+                            <img src="jumbofries.png" alt="Jumbo" />
+                        </div>
+                        <div class="item-label">Jumbo</div>
+                    </div>
+                    
+                    <div class="item-card">
+                        <div class="size-image">
+                            <img src="megafries.png" alt="Mega" />
+                        </div>
+                        <div class="item-label">Mega</div>
+                    </div>
+                    
+                    <div class="item-card">
+                        <div class="size-image">
+                            <img src="gigafries.png" alt="Giga" />
+                        </div>
+                        <div class="item-label">Giga</div>
+                    </div>
+                    
+                    <div class="item-card">
+                        <div class="size-image">
+                            <img src="terrafries.png" alt="Terra" />
+                        </div>
+                        <div class="item-label">Terra</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- CHICKEN POPS SECTION -->
+            <div class="menu-section">
+                <h2 class="section-header">Chicken Pops</h2>
+                <div class="items-grid">
+                    <div class="item-card">
+                        <div class="size-image">
+                            <img src="solopops.png" alt="Solo" />
+                        </div>
+                        <div class="item-label">Solo</div>
+                    </div>
+                    
+                    <div class="item-card">
+                        <div class="size-image">
+                            <img src="largepops.png" alt="Large" />
+                        </div>
+                        <div class="item-label">Large</div>
+                    </div>
+                    
+                    <div class="item-card">
+                        <div class="size-image">
+                            <img src="megapops.png" alt="Mega" />
+                        </div>
+                        <div class="item-label">Mega</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- LOOPYS SECTION -->
+            <div class="menu-section">
+                <h2 class="section-header">Loopys</h2>
+                <div class="items-grid">
+                    <div class="item-card">
+                        <div class="size-image">
+                            <img src="largeloopys.png" alt="Large" />
+                        </div>
+                        <div class="item-label">Large</div>
+                    </div>
+                    
+                    <div class="item-card">
+                        <div class="size-image">
+                            <img src="megaloopys.png" alt="Mega" />
+                        </div>
+                        <div class="item-label">Mega</div>
+                    </div>
+                </div>
+            </div>
+            
         </div>
-    </div>
-
-    <div class="footer">
-        <div class="footer-links">
-            <a href="#">Terms &amp; Conditions</a> |
-            <a href="#">Privacy Policy</a>
+        
+        <!-- FOOTER -->
+        <div class="footer">
+            <div class="footer-links">
+                <a href="#">Terms &amp; Conditions</a> |
+                <a href="#">Privacy Policy</a>
+            </div>
+            <div class="footer-copy">© 2026 Potato Corner. All rights reserved.</div>
         </div>
-        <div class="footer-copy">&copy; 2026 Potato Corner. All rights reserved.</div>
-    </div>
-
-</div>
-</form>
+    </form>
 </body>
 </html>
