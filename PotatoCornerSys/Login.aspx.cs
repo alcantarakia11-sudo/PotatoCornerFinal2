@@ -102,7 +102,7 @@ namespace PotatoCornerSys
                             }
                             else
                             {
-                                lblError.Text = "Invalid email or password. Please try again.";
+                                lblError.Text = "Invalid username or password. Please try again.";
                                 lblError.Visible = true;
                             }
                         }
