@@ -116,12 +116,11 @@ namespace PotatoCornerSys
                 }
 
                 decimal amountPaid;
-                if (!decimal.TryParse(txtAmountPaid.Text.Trim(), out amountPaid) || amountPaid < 100)
-                {
-                    ShowMessage("Please enter at least PHP 100 for registration fee.", false);
-                    return;
-                }
-
+               if (!decimal.TryParse(txtAmountPaid.Text.Trim(), out amountPaid) || amountPaid != 100)
+{
+    ShowMessage("Amount paid must be exactly PHP 100.", false);
+    return;
+}
                 // Generate royalty number
                 Random random = new Random();
                 string royaltyNumber = "PC" + random.Next(10000, 99999).ToString();
