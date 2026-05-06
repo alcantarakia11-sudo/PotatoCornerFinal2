@@ -129,6 +129,65 @@
         text-align: left;
     }
 </style>
+<script type="text/javascript">
+    // Security: Prevent password field inspection
+    document.addEventListener('DOMContentLoaded', function() {
+        // Disable right-click on password fields
+        var passwordFields = document.querySelectorAll('input[type="password"]');
+        passwordFields.forEach(function(field) {
+            field.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                return false;
+            });
+            
+            // Prevent copying password
+            field.addEventListener('copy', function(e) {
+                e.preventDefault();
+                return false;
+            });
+            
+            // Prevent cutting password
+            field.addEventListener('cut', function(e) {
+                e.preventDefault();
+                return false;
+            });
+            
+            // Add autocomplete off
+            field.setAttribute('autocomplete', 'new-password');
+        });
+    });
+    
+    // Detect DevTools opening
+    var devtoolsOpen = false;
+    var threshold = 160;
+    
+    setInterval(function() {
+        if (window.outerWidth - window.innerWidth > threshold || 
+            window.outerHeight - window.innerHeight > threshold) {
+            if (!devtoolsOpen) {
+                devtoolsOpen = true;
+                // Clear password fields when DevTools detected
+                var passwordFields = document.querySelectorAll('input[type="password"]');
+                passwordFields.forEach(function(field) {
+                    field.value = '';
+                });
+            }
+        } else {
+            devtoolsOpen = false;
+        }
+    }, 500);
+    
+    // Disable F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+    document.addEventListener('keydown', function(e) {
+        if (e.keyCode == 123 || // F12
+            (e.ctrlKey && e.shiftKey && e.keyCode == 73) || // Ctrl+Shift+I
+            (e.ctrlKey && e.shiftKey && e.keyCode == 74) || // Ctrl+Shift+J
+            (e.ctrlKey && e.keyCode == 85)) { // Ctrl+U
+            e.preventDefault();
+            return false;
+        }
+    });
+</script>
 </head>
 <body>
     <form id="form1" runat="server">
@@ -166,13 +225,13 @@
             </div>
 
             <div class="field-group">
-                <asp:TextBox ID="txtPassword" runat="server" CssClass="textbox" TextMode="Password" placeholder="Password" />
+                <asp:TextBox ID="txtPassword" runat="server" CssClass="textbox" TextMode="Password" placeholder="Password" autocomplete="new-password" />
                 <asp:Label ID="lblPasswordError" runat="server" CssClass="field-error" Visible="false" />
                 <span class="field-hint">Min. 8 characters with at least 1 letter and 1 number</span>
             </div>
 
             <div class="field-group">
-                <asp:TextBox ID="txtConfirmPassword" runat="server" CssClass="textbox" TextMode="Password" placeholder="Confirm Password" />
+                <asp:TextBox ID="txtConfirmPassword" runat="server" CssClass="textbox" TextMode="Password" placeholder="Confirm Password" autocomplete="new-password" />
                 <asp:Label ID="lblConfirmPasswordError" runat="server" CssClass="field-error" Visible="false" />
                 <span class="field-hint">Must match your password</span>
             </div>

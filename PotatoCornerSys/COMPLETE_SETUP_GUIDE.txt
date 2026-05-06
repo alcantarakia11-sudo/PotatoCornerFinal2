@@ -1,0 +1,208 @@
+═══════════════════════════════════════════════════════════════
+  POTATO CORNER COMPLETE SETUP GUIDE
+═══════════════════════════════════════════════════════════════
+
+## STEP 1: DATABASE SETUP
+═══════════════════════════════════════════════════════════════
+
+1. Open SQL Server Management Studio (SSMS)
+2. Connect to your SQL Server instance
+3. Open the file: CompleteDatabase_Setup.sql
+4. Execute the script (F5 or click Execute)
+
+This will:
+✓ Create PotatoCornerDB database
+✓ Create all 6 tables with proper relationships
+✓ Add stock quantities to Products and ProductFlavors
+✓ Insert admin account (admin / admin1290)
+✓ Insert 2 sample users
+✓ Set up all constraints and foreign keys
+
+IMPORTANT: This script drops the existing database if it exists!
+Make sure to backup any important data first.
+
+═══════════════════════════════════════════════════════════════
+
+## STEP 2: PROJECT SETUP
+═══════════════════════════════════════════════════════════════
+
+1. Add PasswordHelper.cs to your project
+2. Rebuild the solution (Ctrl+Shift+B)
+3. Verify no compilation errors
+
+═══════════════════════════════════════════════════════════════
+
+## STEP 3: ORDER.ASPX IMPROVEMENTS
+═══════════════════════════════════════════════════════════════
+
+The following improvements have been made:
+
+✓ Name field is now READ-ONLY and auto-fills from user profile
+✓ Contact number validation:
+  - Must be exactly 11 digits
+  - Must start with 09
+  - Only numbers allowed
+  - MaxLength set to 11
+✓ Empty cart validation:
+  - Cannot proceed to checkout with empty cart
+  - Shows alert message
+✓ All validations work in real-time
+
+═══════════════════════════════════════════════════════════════
+
+## STEP 4: PASSWORD SECURITY (OPTIONAL)
+═══════════════════════════════════════════════════════════════
+
+Passwords are currently stored as plain text for easy testing.
+
+To enable password hashing:
+1. Run HashExistingPasswords.sql in SSMS
+2. All passwords will be hashed with SHA256
+3. Login will still work with original passwords
+
+The system supports both plain text and hashed passwords
+(backward compatibility built-in).
+
+═══════════════════════════════════════════════════════════════
+
+## DATABASE STRUCTURE
+═══════════════════════════════════════════════════════════════
+
+USERS Table:
+- CustomerID (PK, Identity)
+- UserName (Unique)
+- Fullname
+- Address
+- Email (Unique)
+- PhoneNumber (Unique, 11 digits)
+- Password (Plain text or SHA256 hash)
+- Points (Default: 0)
+- MembershipLevel (Regular/Royalty/Admin)
+- DateCreated
+
+Membership Table:
+- MembershipID (PK, Identity)
+- CustomerID (FK to USERS)
+- MembershipNumber (Unique)
+- MembershipType (Default: Royalty)
+- DateJoined
+- ProfileImagePath (For future use)
+
+Products Table (Sizes):
+- ProductID (PK, Identity)
+- ProductName (Unique)
+- Price
+- StockQuantity (Default: 50)
+- Category (Default: Size)
+
+ProductFlavors Table:
+- FlavorID (PK, Identity)
+- FlavorName (Unique)
+- StockQuantity (Default: 50)
+
+Orders Table:
+- OrderID (PK, Identity)
+- CustomerID (FK to USERS)
+- CustomerName
+- PhoneNumber (11 digits)
+- Address
+- TotalAmount
+- OrderDate
+- OrderStatus (Pending/Confirmed/Out for Delivery/Delivered/Picked Up/No Show/Cancelled)
+- OrderType (Delivery/Walk-in)
+- PickupLocation
+- ScheduledPickupTime
+- ActualPickupTime
+
+OrderItems Table:
+- OrderItemID (PK, Identity)
+- OrderID (FK to Orders)
+- ProductID (FK to Products)
+- FlavorID (FK to ProductFlavors)
+- Quantity
+- Price
+
+═══════════════════════════════════════════════════════════════
+
+## DEFAULT ACCOUNTS
+═══════════════════════════════════════════════════════════════
+
+Admin Account:
+Username: admin
+Email: admin@potatocorner.com
+Password: admin1290
+Phone: 09123456789
+
+Sample User 1:
+Username: kalyna
+Email: meckiahaalcantara15@gmail.com
+Password: password123
+Phone: 09876543210
+Type: Regular
+
+Sample User 2:
+Username: admin_flores
+Email: aeschenflores@gmail.com
+Password: password123
+Phone: 09111222333
+Type: Royalty
+Royalty Number: PC-ROY-2024-001
+
+═══════════════════════════════════════════════════════════════
+
+## STOCK MANAGEMENT
+═══════════════════════════════════════════════════════════════
+
+Initial Stock Levels:
+- All sizes: 50 units each
+- All flavors: 50 units each
+
+Stock Deduction Rules:
+- Size: 1:1 ratio (1 order = 1 unit deducted)
+- Flavor: 1:10 ratio (1 order = 0.1 unit deducted)
+
+Stock Refund Rules (No Show/Cancelled):
+- Size: Full refund (1:1)
+- Flavor: Full refund (1:10)
+
+Update Stock:
+- Use Update.aspx (Admin only)
+- Enter new stock quantity
+- Click Update button
+
+═══════════════════════════════════════════════════════════════
+
+## TESTING CHECKLIST
+═══════════════════════════════════════════════════════════════
+
+□ Login with admin account
+□ Login with regular user
+□ Login with royalty member
+□ Register new user
+□ Place order (check stock deduction)
+□ Try to checkout with empty cart (should fail)
+□ Try invalid phone number (should fail)
+□ Verify name is auto-filled and read-only
+□ Update stock as admin
+□ View sales as admin
+□ Check profile page
+□ Test delete account feature
+
+═══════════════════════════════════════════════════════════════
+
+## TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════
+
+Issue: Cannot login
+Solution: Run ResetPasswordsToPlainText.sql to reset passwords
+
+Issue: Stock not deducting
+Solution: Check if Products and ProductFlavors have StockQuantity column
+
+Issue: Name field is empty in Order.aspx
+Solution: Make sure user is logged in (Session["Name"] exists)
+
+Issue: Phone validation not working
+Solution: Clear browser cache and refresh page
+
+═══════════════════════════════════════════════════════════════

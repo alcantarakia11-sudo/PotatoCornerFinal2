@@ -1,0 +1,205 @@
+========================================
+POTATO CORNER STOCK SETUP GUIDE
+========================================
+
+This guide will help you initialize the stock management system for your Potato Corner database.
+
+========================================
+PREREQUISITES
+========================================
+
+Before running the stock initialization script, make sure you have:
+
+1. SQL Server Management Studio (SSMS) installed
+2. Access to the PotatoCorner_DB database
+3. The following tables already created:
+   - Products
+   - ProductSizes
+   - ProductFlavors
+   - ProductSizeStock
+   - FlavorStock
+
+========================================
+STEP-BY-STEP INSTRUCTIONS
+========================================
+
+STEP 1: OPEN SQL SERVER MANAGEMENT STUDIO
+------------------------------------------
+1. Launch SQL Server Management Studio
+2. Connect to your SQL Server instance
+3. In Object Explorer, expand "Databases"
+4. Verify that "PotatoCorner_DB" exists
+
+
+STEP 2: OPEN THE INITIALIZATION SCRIPT
+------------------------------------------
+1. In SSMS, go to File > Open > File
+2. Navigate to and select "InitializeStock.sql"
+3. The script will open in a new query window
+
+
+STEP 3: VERIFY DATABASE CONNECTION
+------------------------------------------
+1. At the top of the query window, check the database dropdown
+2. Make sure "PotatoCorner_DB" is selected
+3. If not, select it from the dropdown
+
+
+STEP 4: RUN THE SCRIPT
+------------------------------------------
+1. Click the "Execute" button (or press F5)
+2. Wait for the script to complete
+3. Check the "Messages" tab at the bottom for results
+
+
+STEP 5: VERIFY THE RESULTS
+------------------------------------------
+The script will display:
+
+1. Product Size Stock:
+   - All product sizes (Regular, Large, Jumbo)
+   - Each with 50 units of stock
+   - Low stock threshold: 10 units
+
+2. Flavor Stock:
+   - All flavors (Cheese, BBQ, Chili BBQ, Bacon & Cheese)
+   - Each with 50 units of stock
+   - Low stock threshold: 5 units
+
+3. Summary counts showing total records created
+
+
+========================================
+WHAT THE SCRIPT DOES
+========================================
+
+1. CLEARS EXISTING STOCK
+   - Removes any old stock data
+   - Ensures a clean start
+
+2. INITIALIZES PRODUCT SIZE STOCK
+   - Creates stock entries for all product sizes
+   - Sets initial quantity: 50 units
+   - Sets low stock alert: 10 units
+
+3. INITIALIZES FLAVOR STOCK
+   - Creates stock entries for all flavors
+   - Sets initial quantity: 50 units
+   - Sets low stock alert: 5 units
+
+4. VERIFIES SETUP
+   - Shows all created stock entries
+   - Displays summary counts
+
+
+========================================
+INITIAL STOCK QUANTITIES
+========================================
+
+PRODUCT SIZES: 50 units each
+- French Fries - Regular: 50
+- French Fries - Large: 50
+- French Fries - Jumbo: 50
+- Loopys (Wedges) - Regular: 50
+- Loopys (Wedges) - Large: 50
+- Loopys (Wedges) - Jumbo: 50
+
+FLAVORS: 50 units each
+- Cheese: 50
+- BBQ: 50
+- Chili BBQ: 50
+- Bacon & Cheese: 50
+
+Note: Flavor stock uses a 1:10 ratio
+(1 flavor unit serves 10 orders)
+
+
+========================================
+AFTER INITIALIZATION
+========================================
+
+1. LOG IN TO ADMIN PANEL
+   - Username: admin_flores
+   - Password: admin1290
+
+2. GO TO UPDATE PAGE
+   - Click "Update" in the admin navigation
+   - You will see all products and flavors with 50 stock
+
+3. MANAGE STOCK
+   - Add stock by entering quantity and clicking "Update Stock"
+   - Low stock items will be highlighted in red
+   - Low stock alert will appear at the top if any item is below threshold
+
+
+========================================
+STOCK DEDUCTION RULES
+========================================
+
+When customers place orders:
+
+SIZE STOCK DEDUCTION (1:1 ratio)
+- Customer orders 3 Regular Fries
+- Regular size stock decreases by 3
+
+FLAVOR STOCK DEDUCTION (1:10 ratio)
+- Customer orders 4 Cheese flavored items
+- Cheese flavor stock decreases by 1
+- (Because 1 flavor unit serves 10 orders)
+
+
+========================================
+TROUBLESHOOTING
+========================================
+
+PROBLEM: Script shows errors
+SOLUTION: 
+- Check that you're connected to PotatoCorner_DB
+- Verify all required tables exist
+- Make sure you have permission to modify the database
+
+PROBLEM: No stock appears in Update.aspx
+SOLUTION:
+- Refresh the page (Ctrl + F5)
+- Check that the script completed successfully
+- Verify you're logged in as admin
+
+PROBLEM: Duplicate entries appear
+SOLUTION:
+- Run the FinalStockFix.sql script to clean duplicates
+- Then run InitializeStock.sql again
+
+PROBLEM: Stock quantities are wrong
+SOLUTION:
+- Run InitializeStock.sql again
+- It will reset all stock to 50 units
+
+
+========================================
+ADJUSTING INITIAL QUANTITIES
+========================================
+
+If you want different initial quantities:
+
+1. Open InitializeStock.sql in a text editor
+2. Find these lines:
+   - "50 AS StockQuantity" (appears twice)
+3. Change 50 to your desired quantity
+4. Save the file
+5. Run the modified script
+
+
+========================================
+SUPPORT
+========================================
+
+If you encounter issues:
+1. Check the Messages tab in SSMS for error details
+2. Verify all prerequisite tables exist
+3. Ensure you have admin access to the database
+4. Contact your database administrator if needed
+
+
+========================================
+END OF GUIDE
+========================================

@@ -112,14 +112,14 @@
         
         .hero-banner {
             background: linear-gradient(135deg, #e8401c 0%, #ff6b47 100%);
-            padding: 25px 40px;
+            padding: 15px 40px;
             border-radius: 16px;
             text-align: center;
             box-shadow: 0 6px 20px rgba(232,64,28,0.3);
         }
         
         .hero-banner h1 { 
-            font-size: 42px; 
+            font-size: 48px; 
             color: white; 
             font-weight: 900; 
             text-transform: uppercase; 

@@ -57,8 +57,9 @@
         .panel-title { font-size: 17px; font-weight: 900; color: #119247; text-transform: uppercase; margin-bottom: 18px; border-bottom: 4px solid #f5c800; padding-bottom: 10px; letter-spacing: 0.5px; }
         .input-group { margin-bottom: 16px; }
         .input-group label { display: block; font-size: 13px; font-weight: 700; color: #555; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.3px; }
-        .input-group input { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; transition: all 0.3s; }
-        .input-group input:focus { border-color: #119247; outline: none; box-shadow: 0 0 0 3px rgba(17,146,71,0.1); }
+        .input-group input, .input-group select { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; transition: all 0.3s; }
+        .input-group input:focus, .input-group select:focus { border-color: #119247; outline: none; box-shadow: 0 0 0 3px rgba(17,146,71,0.1); }
+        .input-group input.readonly-field { background: #f5f5f5; color: #666; cursor: not-allowed; }
 
         /* VALIDATION STYLES */
         .field-error { display: block; color: #dc3545; font-size: 11px; font-weight: 600; margin-top: 5px; min-height: 16px; transition: all 0.2s; }
@@ -170,17 +171,35 @@
 
                 <div class="input-group">
                     <label>Name</label>
-                    <asp:TextBox ID="txtName" runat="server" placeholder="Enter full name"></asp:TextBox>
+                    <asp:TextBox ID="txtName" runat="server" placeholder="Your name" ReadOnly="true" CssClass="readonly-field"></asp:TextBox>
                     <span id="errName" class="field-error"></span>
                 </div>
                 <div class="input-group">
-                    <label>Address</label>
-                    <asp:TextBox ID="txtAddress" runat="server" placeholder="Enter address"></asp:TextBox>
-                    <span id="errAddress" class="field-error"></span>
+                    <label>Location</label>
+                    <asp:DropDownList ID="ddlLocation" runat="server" CssClass="input-group input" onchange="checkLocationAvailability()">
+                        <asp:ListItem Value="" Text="-- Select Location --"></asp:ListItem>
+                        <asp:ListItem Value="Balisong|Delivery" Text="Balisong (Delivery)"></asp:ListItem>
+                        <asp:ListItem Value="Talo-ot|Delivery" Text="Talo-ot (Delivery)"></asp:ListItem>
+                        <asp:ListItem Value="Tulic|Delivery" Text="Tulic (Delivery)"></asp:ListItem>
+                        <asp:ListItem Value="Talaga|Delivery" Text="Talaga (Delivery)"></asp:ListItem>
+                        <asp:ListItem Value="Bogo|Delivery" Text="Bogo (Delivery)"></asp:ListItem>
+                        <asp:ListItem Value="Binlod|Delivery" Text="Binlod (Delivery)"></asp:ListItem>
+                        <asp:ListItem Value="Bulasa|Delivery" Text="Bulasa (Delivery)"></asp:ListItem>
+                        <asp:ListItem Value="Poblacion|Both" Text="Poblacion"></asp:ListItem>
+                        <asp:ListItem Value="Lamacan|Both" Text="Lamacan"></asp:ListItem>
+                        <asp:ListItem Value="Langtad|Both" Text="Langtad"></asp:ListItem>
+                        <asp:ListItem Value="Canbanua|Both" Text="Canbanua"></asp:ListItem>
+                    </asp:DropDownList>
+                    <span id="errLocation" class="field-error"></span>
+                </div>
+                <div class="input-group">
+                    <label>Street Address</label>
+                    <asp:TextBox ID="txtStreet" runat="server" placeholder="Enter street address"></asp:TextBox>
+                    <span id="errStreet" class="field-error"></span>
                 </div>
                 <div class="input-group">
                     <label>Contact</label>
-                    <asp:TextBox ID="txtContact" runat="server" placeholder="e.g. 09123456789"></asp:TextBox>
+                    <asp:TextBox ID="txtContact" runat="server" placeholder="e.g. 09123456789" MaxLength="11"></asp:TextBox>
                     <span id="errContact" class="field-error"></span>
                 </div>
 
@@ -373,6 +392,17 @@
                 </div>
             </div>
         </div>
+
+        <!-- LOCATION NOT AVAILABLE MODAL -->
+        <div id="locationModal" class="modal-overlay">
+            <div class="modal-box">
+                <div class="modal-header" style="color: #e8401c;">Location Not Available</div>
+                <div class="modal-message">This location is only available for delivery orders. Please select "Delivery" as your delivery type or choose a different location that supports walk-in.</div>
+                <div class="modal-buttons">
+                    <button type="button" class="modal-btn modal-btn-confirm" onclick="hideLocationModal()" style="width: 100%;">OK</button>
+                </div>
+            </div>
+        </div>
     </form>
 
     <script>
@@ -383,11 +413,36 @@
         function hidePickupTimeModal() {
             document.getElementById('pickupTimeModal').classList.remove('active');
         }
+        function showLocationModal() {
+            document.getElementById('locationModal').classList.add('active');
+        }
+        function hideLocationModal() {
+            document.getElementById('locationModal').classList.remove('active');
+        }
         function removeCartItem(index) {
             if (confirm('Remove this item from cart?')) {
                 __doPostBack('RemoveCartItem', index);
             }
         }
+        
+        // Check location availability
+        function checkLocationAvailability() {
+            var locationDropdown = document.getElementById('<%= ddlLocation.ClientID %>');
+            var deliveryType = document.getElementById('<%= hdnDeliveryType.ClientID %>').value;
+            var selectedValue = locationDropdown.value;
+            
+            if (selectedValue) {
+                var parts = selectedValue.split('|');
+                var locationType = parts[1];
+                
+                // If location is Delivery-only and user selected Walk-in
+                if (locationType === 'Delivery' && deliveryType === 'WalkIn') {
+                    showLocationModal();
+                    locationDropdown.selectedIndex = 0; // Reset to "Select Location"
+                }
+            }
+        }
+        
         document.addEventListener('DOMContentLoaded', function () {
             var modal = document.getElementById('pickupTimeModal');
             if (modal) {
@@ -395,16 +450,25 @@
                     if (e.target === this) hidePickupTimeModal();
                 });
             }
+            
+            var locationModalEl = document.getElementById('locationModal');
+            if (locationModalEl) {
+                locationModalEl.addEventListener('click', function (e) {
+                    if (e.target === this) hideLocationModal();
+                });
+            }
         });
 
         // ── REAL-TIME INPUT VALIDATION ──
         var nameInput    = document.getElementById('<%= txtName.ClientID %>');
-        var addressInput = document.getElementById('<%= txtAddress.ClientID %>');
+        var streetInput  = document.getElementById('<%= txtStreet.ClientID %>');
         var contactInput = document.getElementById('<%= txtContact.ClientID %>');
+        var locationDropdown = document.getElementById('<%= ddlLocation.ClientID %>');
 
         var errName    = document.getElementById('errName');
-        var errAddress = document.getElementById('errAddress');
+        var errStreet  = document.getElementById('errStreet');
         var errContact = document.getElementById('errContact');
+        var errLocation = document.getElementById('errLocation');
 
         function setValid(input, errEl) {
             input.classList.remove('invalid');
@@ -440,41 +504,55 @@
             if (this.value.trim() === '') setInvalid(this, errName, 'Full name is required.');
         });
 
-        // ADDRESS
-        addressInput.addEventListener('input', function () {
+        // STREET ADDRESS
+        streetInput.addEventListener('input', function () {
             var val = this.value.trim();
             if (val === '') {
-                clearState(this, errAddress);
+                clearState(this, errStreet);
             } else if (val.length < 5) {
-                setInvalid(this, errAddress, 'Please enter a valid address (min 5 characters).');
+                setInvalid(this, errStreet, 'Please enter a valid street address (min 5 characters).');
             } else if (!/^[a-zA-Z0-9\s,.\-#\/]+$/.test(val)) {
-                setInvalid(this, errAddress, 'Address contains invalid characters.');
+                setInvalid(this, errStreet, 'Street address contains invalid characters.');
             } else {
-                setValid(this, errAddress);
+                setValid(this, errStreet);
             }
         });
-        addressInput.addEventListener('blur', function () {
-            if (this.value.trim() === '') setInvalid(this, errAddress, 'Address is required.');
+        streetInput.addEventListener('blur', function () {
+            if (this.value.trim() === '') setInvalid(this, errStreet, 'Street address is required.');
         });
 
-        // CONTACT — digits only, must be 11 digits starting with 09
+        // CONTACT — digits only, must be exactly 11 digits starting with 09
         contactInput.addEventListener('input', function () {
             this.value = this.value.replace(/[^0-9]/g, '');
             var val = this.value.trim();
             if (val === '') {
                 clearState(this, errContact);
             } else if (val.length < 11) {
-                setInvalid(this, errContact, 'Contact number must be 11 digits.');
-            } else if (val.length > 11) {
-                setInvalid(this, errContact, 'Contact number cannot exceed 11 digits.');
-            } else if (!/^09\d{9}$/.test(val)) {
+                setInvalid(this, errContact, 'Contact number must be exactly 11 digits.');
+            } else if (val.length === 11 && !/^09\d{9}$/.test(val)) {
                 setInvalid(this, errContact, 'Contact must start with 09 (e.g. 09123456789).');
-            } else {
+            } else if (val.length === 11) {
                 setValid(this, errContact);
             }
         });
         contactInput.addEventListener('blur', function () {
-            if (this.value.trim() === '') setInvalid(this, errContact, 'Contact number is required.');
+            var val = this.value.trim();
+            if (val === '') {
+                setInvalid(this, errContact, 'Contact number is required.');
+            } else if (val.length !== 11) {
+                setInvalid(this, errContact, 'Contact number must be exactly 11 digits.');
+            } else if (!/^09\d{9}$/.test(val)) {
+                setInvalid(this, errContact, 'Contact must start with 09.');
+            }
+        });
+
+        // LOCATION VALIDATION
+        locationDropdown.addEventListener('change', function () {
+            if (this.value === '') {
+                setInvalid(this, errLocation, 'Please select a location.');
+            } else {
+                setValid(this, errLocation);
+            }
         });
 
         // BLOCK CONFIRM if frontend validation fails
@@ -482,8 +560,9 @@
         if (confirmBtn) {
             confirmBtn.addEventListener('click', function (e) {
                 var nameVal = nameInput.value.trim();
-                var addressVal = addressInput.value.trim();
+                var streetVal = streetInput.value.trim();
                 var contactVal = contactInput.value.trim();
+                var locationVal = locationDropdown.value;
                 var hasError = false;
 
                 if (nameVal === '') {
@@ -494,25 +573,43 @@
                     hasError = true;
                 }
 
-                if (addressVal === '') {
-                    setInvalid(addressInput, errAddress, 'Address is required.');
+                if (locationVal === '') {
+                    setInvalid(locationDropdown, errLocation, 'Please select a location.');
                     hasError = true;
-                } else if (addressVal.length < 5) {
-                    setInvalid(addressInput, errAddress, 'Please enter a complete address.');
+                }
+
+                if (streetVal === '') {
+                    setInvalid(streetInput, errStreet, 'Street address is required.');
+                    hasError = true;
+                } else if (streetVal.length < 5) {
+                    setInvalid(streetInput, errStreet, 'Please enter a complete street address.');
                     hasError = true;
                 }
 
                 if (contactVal === '') {
                     setInvalid(contactInput, errContact, 'Contact number is required.');
                     hasError = true;
+                } else if (contactVal.length !== 11) {
+                    setInvalid(contactInput, errContact, 'Contact number must be exactly 11 digits.');
+                    hasError = true;
                 } else if (!/^09\d{9}$/.test(contactVal)) {
                     setInvalid(contactInput, errContact, 'Enter a valid 11-digit number starting with 09.');
                     hasError = true;
                 }
 
+                // CHECK IF CART IS EMPTY
+                if (cart.length === 0) {
+                    alert('Your cart is empty! Please add items before checking out.');
+                    hasError = true;
+                }
+
                 if (hasError) {
                     e.preventDefault();
-                    nameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    if (cart.length === 0) {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    } else {
+                        nameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
                     return false;
                 }
             });

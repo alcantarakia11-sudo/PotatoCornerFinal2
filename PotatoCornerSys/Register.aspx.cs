@@ -72,7 +72,7 @@ namespace PotatoCornerSys
                         cmd.Parameters.AddWithValue("@Address", address);
                         cmd.Parameters.AddWithValue("@Email", email);
                         cmd.Parameters.AddWithValue("@Phone", phone);
-                        cmd.Parameters.AddWithValue("@Password", password);
+                        cmd.Parameters.AddWithValue("@Password", PasswordHelper.HashPassword(password));
 
                         if (cmd.ExecuteNonQuery() > 0)
                         {

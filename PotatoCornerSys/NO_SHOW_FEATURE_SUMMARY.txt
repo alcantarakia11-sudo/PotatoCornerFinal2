@@ -1,0 +1,212 @@
+========================================
+NO SHOW FEATURE - IMPLEMENTATION SUMMARY
+========================================
+
+WHAT WAS ADDED:
+- Automatic "No Show" status for walk-in orders not picked up within 60 minutes
+- Stock refund system for no-show orders
+- Orange color coding for no-show orders
+- Revenue tracking (no-show orders count as revenue)
+
+========================================
+HOW IT WORKS
+========================================
+
+WALK-IN ORDER TIMELINE:
+
+0 min:  Customer places walk-in order → PENDING
+5 min:  Admin confirms → CONFIRMED
+        (Customer has 60 minutes to pick up)
+
+Within 60 min: Customer arrives → Admin marks PICKED UP ✓
+
+After 60 min:  No customer → Auto changes to NO SHOW ⚠
+               - Stock automatically refunded
+               - Money stays with business
+               - Customer sees "No Show" in profile
+
+========================================
+BUSINESS LOGIC
+========================================
+
+When order becomes "No Show":
+
+✓ MONEY: Stays with business (NO refund to customer)
+✓ STOCK: Automatically refunded (available to sell again)
+✓ REVENUE: Counts in total revenue
+✓ CUSTOMER: Sees "No Show - Not Picked Up" status
+✓ ADMIN: Sees orange "No Show" badge
+
+This protects your business from:
+- Customers who order but don't show up
+- Wasted preparation time
+- Held inventory that could be sold
+
+========================================
+STOCK REFUND DETAILS
+========================================
+
+When a walk-in order hits 60 minutes:
+
+1. System finds all "Confirmed" walk-in orders older than 60 min
+2. For each order:
+   - Gets all order items
+   - Refunds product size stock (1:1 ratio)
+   - Refunds flavor stock (1:10 ratio)
+3. Changes order status to "No Show"
+4. Stock is back in inventory for new orders
+
+Example:
+- Order: 3 Large Fries with Cheese
+- After 60 min no-show:
+  - Large size stock: +3 units
+  - Cheese flavor stock: +1 unit (3÷10 = 0.3, rounded up to 1)
+
+========================================
+CUSTOMER EXPERIENCE
+========================================
+
+In Profile.aspx, customer sees:
+
+Status Badge: "No Show - Not Picked Up" (Orange)
+Message: Order was not picked up within the time limit
+Actions: Can only "Reorder" (cannot cancel)
+Refund: NONE - Money is forfeited
+
+This teaches customers to:
+- Pick up orders on time
+- Cancel if they can't make it
+- Be responsible with their orders
+
+========================================
+ADMIN EXPERIENCE
+========================================
+
+In Sales.aspx, admin sees:
+
+Status Badge: "No Show" (Orange background)
+Row Style: Orange tinted (different from cancelled)
+Revenue: INCLUDED in total revenue
+Action: No buttons (order is final)
+
+Benefits:
+- Easy to spot no-show customers
+- Track which customers frequently don't show
+- Revenue accurately reflects money received
+- Stock automatically available for resale
+
+========================================
+TIMING BREAKDOWN
+========================================
+
+0-10 minutes:
+- Customer can cancel (gets refund)
+- Admin can confirm
+
+10-60 minutes:
+- Customer CANNOT cancel
+- Admin waiting for pickup
+- Order stays "Confirmed"
+
+60+ minutes:
+- Auto-changes to "No Show"
+- Stock refunded automatically
+- Money kept by business
+- Customer cannot cancel
+
+========================================
+DIFFERENCES FROM CANCELLED
+========================================
+
+CANCELLED:
+- Customer initiated (within 10 min)
+- Money refunded to customer
+- Stock refunded
+- NOT counted in revenue
+- Gray/pale appearance
+
+NO SHOW:
+- System initiated (after 60 min)
+- Money kept by business
+- Stock refunded
+- COUNTED in revenue
+- Orange appearance
+
+========================================
+FILES MODIFIED
+========================================
+
+1. Sales.aspx
+   - Added "No Show" status badge styles
+   - Added orange color for no-show rows
+
+2. Sales.aspx.cs
+   - Added auto no-show detection in LoadOrders()
+   - Added RefundStockForNoShow() method
+   - Updated revenue calculation to include no-shows
+   - Updated row styling for no-show orders
+
+3. Profile.aspx
+   - Added "No Show" badge style
+
+4. Profile.aspx.cs
+   - Added "No Show" to GetOrderStatus()
+   - Updated GetCancelButton() to hide for no-shows
+
+========================================
+TESTING THE FEATURE
+========================================
+
+QUICK TEST (Manual):
+1. Place a walk-in order
+2. Admin confirms it
+3. In database, run:
+   UPDATE Orders 
+   SET OrderDate = DATEADD(MINUTE, -61, GETDATE()) 
+   WHERE OrderID = [your_order_id]
+4. Refresh Sales.aspx
+5. Order should show "No Show"
+6. Check Update.aspx - stock should be refunded
+
+FULL TEST (Wait 60 min):
+1. Place a walk-in order
+2. Admin confirms it
+3. Wait 60 minutes
+4. Refresh Sales.aspx
+5. Order automatically becomes "No Show"
+6. Verify stock is refunded
+7. Verify revenue still counts the order
+8. Customer sees "No Show" in Profile.aspx
+
+========================================
+CONFIGURATION
+========================================
+
+To change the no-show timeout:
+
+In Sales.aspx.cs, find this line:
+AND DATEDIFF(MINUTE, OrderDate, GETDATE()) >= 60
+
+Change 60 to your desired minutes:
+- 30 = 30 minutes
+- 45 = 45 minutes
+- 90 = 90 minutes
+
+Recommended: 60 minutes (1 hour)
+
+========================================
+SUMMARY
+========================================
+
+✓ Walk-in orders auto-expire after 60 minutes
+✓ Stock automatically refunded
+✓ Money stays with business (no customer refund)
+✓ Revenue counts no-show orders
+✓ Orange color distinguishes from cancelled
+✓ Protects business from no-show customers
+✓ Automatic - no admin action needed
+
+This feature is now ACTIVE and will run automatically
+every time Sales.aspx is loaded!
+
+========================================

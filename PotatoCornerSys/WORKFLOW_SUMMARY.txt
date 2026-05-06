@@ -1,0 +1,138 @@
+========================================
+POTATO CORNER ORDER WORKFLOW
+QUICK REFERENCE
+========================================
+
+DELIVERY ORDERS (4 Steps)
+========================================
+
+Customer Side:
+1. Places order → PENDING
+2. Waits for confirmation
+3. Sees "Out for Delivery" status
+4. Clicks "Mark Delivered" → DELIVERED ✓
+
+Admin Side (Sales.aspx):
+1. Sees new order → PENDING
+2. Clicks "Confirm Order" → CONFIRMED
+3. Clicks "Out for Delivery" → OUT FOR DELIVERY
+4. Customer marks delivered → DELIVERED ✓
+
+Visual Flow:
+[Customer Orders] 
+    ↓
+[PENDING] ← Admin sees "Confirm Order" button
+    ↓ (Admin clicks)
+[CONFIRMED] ← Admin sees "Out for Delivery" button
+    ↓ (Admin clicks)
+[OUT FOR DELIVERY] ← Customer sees "Mark Delivered" button
+    ↓ (Customer clicks)
+[DELIVERED] ✓
+
+
+WALK-IN ORDERS (3 Steps + Auto No-Show)
+========================================
+
+Customer Side:
+1. Places order → PENDING
+2. Waits for confirmation
+3. Goes to store to pick up
+4. Order marked as PICKED UP ✓
+   OR
+   After 60 minutes → NO SHOW (auto)
+
+Admin Side (Sales.aspx):
+1. Sees new order → PENDING
+2. Clicks "Confirm Order" → CONFIRMED
+3. Customer arrives, clicks "Mark Picked Up" → PICKED UP ✓
+   OR
+   After 60 minutes → NO SHOW (auto, stock refunded)
+
+Visual Flow:
+[Customer Orders]
+    ↓
+[PENDING] ← Admin sees "Confirm Order" button
+    ↓ (Admin clicks)
+[CONFIRMED] ← Admin sees "Mark Picked Up" button
+    ↓ (Admin clicks when customer arrives)
+[PICKED UP] ✓
+
+    OR (if customer doesn't show)
+    
+[CONFIRMED] ← 60 minutes pass
+    ↓ (Automatic)
+[NO SHOW] ⚠ (Stock refunded, money kept)
+
+
+CANCELLATION RULES
+========================================
+
+CAN Cancel:
+✓ Pending orders (within 10 minutes)
+✓ Confirmed orders (within 10 minutes)
+
+CANNOT Cancel:
+✗ After 10 minutes
+✗ Out for Delivery orders
+✗ Picked Up orders
+✗ No Show orders
+✗ Already Delivered orders
+✗ Already Cancelled orders
+
+
+STATUS COLORS
+========================================
+
+🟡 PENDING - Yellow/Amber (Waiting for admin)
+🟢 CONFIRMED - Green (Admin confirmed)
+🔵 OUT FOR DELIVERY - Blue (On the way)
+🟢 DELIVERED - Dark Green (Completed)
+🟣 PICKED UP - Purple (Completed)
+🟠 NO SHOW - Orange (Customer didn't pick up)
+🔴 CANCELLED - Red/Pink (Cancelled, grayed out)
+
+
+BUTTON VISIBILITY
+========================================
+
+Admin (Sales.aspx):
+- "Confirm Order" → Shows for PENDING
+- "Out for Delivery" → Shows for CONFIRMED + Delivery type
+- "Mark Picked Up" → Shows for CONFIRMED + Walk-in type
+
+Customer (Profile.aspx):
+- "Cancel Order" → Shows for PENDING/CONFIRMED (within 10 min)
+- "Mark Delivered" → Shows for OUT FOR DELIVERY only
+- "Reorder" → Always available
+
+AUTO-ACTIONS:
+- Walk-in "Confirmed" orders → Auto "No Show" after 60 minutes
+- Stock automatically refunded for "No Show" orders
+- Money stays with business (no refund)
+
+
+FILES UPDATED
+========================================
+
+1. Sales.aspx - Admin dashboard UI
+2. Sales.aspx.cs - Admin workflow logic
+3. Profile.aspx - Customer profile UI (CSS only)
+4. Profile.aspx.cs - Customer workflow logic
+
+SQL Scripts:
+1. AddOrderWorkflowColumns.sql - Database setup
+2. ORDER_WORKFLOW_GUIDE.txt - Complete documentation
+3. WORKFLOW_SUMMARY.txt - This quick reference
+
+
+SETUP STEPS
+========================================
+
+1. Run AddOrderWorkflowColumns.sql in SSMS
+2. Deploy updated .aspx and .aspx.cs files
+3. Test delivery order flow
+4. Test walk-in order flow
+5. Test cancellation rules
+6. Done! ✓
+
+========================================

@@ -1,0 +1,1042 @@
+
+USE PotatoCorner_DB;
+GO
+
+-- Drop old tables if they exist
+IF EXISTS (SELECT * FROM sysobjects WHERE name='ProductStock' AND xtype='U')
+    DROP TABLE ProductStock;
+IF EXISTS (SELECT * FROM sysobjects WHERE name='FlavorStock' AND xtype='U')
+    DROP TABLE FlavorStock;
+GO
+
+-- Create ProductSizeStock table (tracks stock per product size)
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='ProductSizeStock' AND xtype='U')
+BEGIN
+    CREATE TABLE ProductSizeStock (
+        StockID INT IDENTITY(1,1) PRIMARY KEY,
+        ProductID INT NOT NULL,
+        SizeID INT NULL,
+        StockQuantity INT NOT NULL DEFAULT 0,
+        LowStockThreshold INT NOT NULL DEFAULT 10,
+        LastUpdated DATETIME NOT NULL DEFAULT GETDATE(),
+        FOREIGN KEY (ProductID) REFERENCES Products(ProductID),
+        FOREIGN KEY (SizeID) REFERENCES ProductSizes(SizeID)
+    );
+    
+    PRINT 'ProductSizeStock table created successfully.';
+END
+ELSE
+BEGIN
+    PRINT 'ProductSizeStock table already exists.';
+END
+GO
+
+-- Create FlavorStock table
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='FlavorStock' AND xtype='U')
+BEGIN
+    CREATE TABLE FlavorStock (
+        StockID INT IDENTITY(1,1) PRIMARY KEY,
+        FlavorID INT NOT NULL,
+        StockQuantity INT NOT NULL DEFAULT 0,
+        LowStockThreshold INT NOT NULL DEFAULT 10,
+        LastUpdated DATETIME NOT NULL DEFAULT GETDATE(),
+        FOREIGN KEY (FlavorID) REFERENCES ProductFlavors(FlavorID)
+    );
+    
+    PRINT 'FlavorStock table created successfully.';
+END
+ELSE
+BEGIN
+    PRINT 'FlavorStock table already exists.';
+END
+GO
+
+-- Initialize stock for products with sizes (Fries, Chicken Pops, Loopys)
+INSERT INTO ProductSizeStock (ProductID, SizeID, StockQuantity, LowStockThreshold)
+SELECT p.ProductID, ps.SizeID, 50, 10
+FROM Products p
+CROSS JOIN ProductSizes ps
+WHERE p.ProductName IN ('Fries', 'Chicken Pops', 'Loopys')
+AND NOT EXISTS (
+    SELECT 1 FROM ProductSizeStock pss 
+    WHERE pss.ProductID = p.ProductID AND pss.SizeID = ps.SizeID
+);
+
+-- Initialize stock for existing flavors
+INSERT INTO FlavorStock (FlavorID, StockQuantity, LowStockThreshold)
+SELECT FlavorID, 50, 10
+FROM ProductFlavors
+WHERE FlavorID NOT IN (SELECT FlavorID FROM FlavorStock);
+
+PRINT 'Stock tables initialized successfully.';
+GO
+
+USE PotatoCorner_DB;
+
+
+DELETE FROM FlavorStock;
+
+-- Re-insert only unique flavors (should be 4: Cheese, BBQ, ChiliBBQ, Sour Cream)
+INSERT INTO FlavorStock (FlavorID, StockQuantity, LowStockThreshold)
+SELECT DISTINCT FlavorID, 50, 5
+FROM ProductFlavors;
+
+-- Cleanup and Set Proper Stock Levels
+USE PotatoCorner_DB;
+GO
+
+-- Delete all existing stock entries
+DELETE FROM FlavorStock;
+DELETE FROM ProductSizeStock;
+GO
+
+-- Insert unique flavors only (should be 4 flavors)
+-- 1 unit of flavor = 10 orders
+INSERT INTO FlavorStock (FlavorID, StockQuantity, LowStockThreshold)
+SELECT DISTINCT FlavorID, 50, 5
+FROM ProductFlavors;
+
+-- Insert product sizes (1 unit = 1 order)
+INSERT INTO ProductSizeStock (ProductID, SizeID, StockQuantity, LowStockThreshold)
+SELECT p.ProductID, ps.SizeID, 50, 10
+FROM Products p
+CROSS JOIN ProductSizes ps
+WHERE p.ProductName IN ('Fries', 'Chicken Pops', 'Loopys');
+
+PRINT 'Stock cleaned up and initialized successfully.';
+PRINT 'Flavor stock: 1 unit = 10 orders';
+PRINT 'Size stock: 1 unit = 1 order';
+GO
+
+-- Create Stored Procedures for Stock Management
+USE PotatoCorner_DB;
+GO
+
+-- Procedure to check if items are in stock
+IF EXISTS (SELECT * FROM sys.objects WHERE type = 'P' AND name = 'CheckStockAvailability')
+    DROP PROCEDURE CheckStockAvailability;
+GO
+
+CREATE PROCEDURE CheckStockAvailability
+    @ProductID INT,
+    @SizeID INT,
+    @FlavorID INT,
+    @Quantity INT,
+    @IsAvailable BIT OUTPUT,
+    @Message NVARCHAR(500) OUTPUT
+AS
+BEGIN
+    DECLARE @SizeStock INT;
+    DECLARE @FlavorStock INT;
+    DECLARE @FlavorUnitsNeeded INT;
+    
+    -- Calculate flavor units needed (1 unit serves 10 orders)
+    SET @FlavorUnitsNeeded = CEILING(@Quantity / 10.0);
+    
+    -- Check size stock
+    SELECT @SizeStock = StockQuantity
+    FROM ProductSizeStock
+    WHERE ProductID = @ProductID AND SizeID = @SizeID;
+    
+    -- Check flavor stock
+    SELECT @FlavorStock = StockQuantity
+    FROM FlavorStock
+    WHERE FlavorID = @FlavorID;
+    
+    -- Validate stock
+    IF @SizeStock IS NULL OR @SizeStock < @Quantity
+    BEGIN
+        SET @IsAvailable = 0;
+        SET @Message = 'This size is currently out of stock.';
+        RETURN;
+    END
+    
+    IF @FlavorStock IS NULL OR @FlavorStock < @FlavorUnitsNeeded
+    BEGIN
+        SET @IsAvailable = 0;
+        SET @Message = 'This flavor is currently out of stock.';
+        RETURN;
+    END
+    
+    SET @IsAvailable = 1;
+    SET @Message = 'Item is available.';
+END
+GO
+
+-- Procedure to deduct stock after order
+IF EXISTS (SELECT * FROM sys.objects WHERE type = 'P' AND name = 'DeductStock')
+    DROP PROCEDURE DeductStock;
+GO
+
+CREATE PROCEDURE DeductStock
+    @ProductID INT,
+    @SizeID INT,
+    @FlavorID INT,
+    @Quantity INT
+AS
+BEGIN
+    DECLARE @FlavorUnitsNeeded INT;
+    
+    -- Calculate flavor units needed (1 unit serves 10 orders)
+    SET @FlavorUnitsNeeded = CEILING(@Quantity / 10.0);
+    
+    -- Deduct size stock (1:1 ratio)
+    UPDATE ProductSizeStock
+    SET StockQuantity = StockQuantity - @Quantity,
+        LastUpdated = GETDATE()
+    WHERE ProductID = @ProductID AND SizeID = @SizeID;
+    
+    -- Deduct flavor stock (1:10 ratio)
+    UPDATE FlavorStock
+    SET StockQuantity = StockQuantity - @FlavorUnitsNeeded,
+        LastUpdated = GETDATE()
+    WHERE FlavorID = @FlavorID;
+END
+GO
+
+-- Procedure to get available sizes for a product
+IF EXISTS (SELECT * FROM sys.objects WHERE type = 'P' AND name = 'GetAvailableSizes')
+    DROP PROCEDURE GetAvailableSizes;
+GO
+
+CREATE PROCEDURE GetAvailableSizes
+    @ProductID INT
+AS
+BEGIN
+    SELECT 
+        ps.SizeID,
+        ps.SizeName,
+        pss.StockQuantity
+    FROM ProductSizes ps
+    INNER JOIN ProductSizeStock pss ON ps.SizeID = pss.SizeID
+    WHERE pss.ProductID = @ProductID
+        AND pss.StockQuantity > 0
+    ORDER BY ps.SizeID;
+END
+GO
+
+-- Procedure to get available flavors
+IF EXISTS (SELECT * FROM sys.objects WHERE type = 'P' AND name = 'GetAvailableFlavors')
+    DROP PROCEDURE GetAvailableFlavors;
+GO
+
+CREATE PROCEDURE GetAvailableFlavors
+AS
+BEGIN
+    SELECT 
+        pf.FlavorID,
+        pf.FlavorName,
+        fs.StockQuantity
+    FROM ProductFlavors pf
+    INNER JOIN FlavorStock fs ON pf.FlavorID = fs.FlavorID
+    WHERE fs.StockQuantity > 0
+    ORDER BY pf.FlavorID;
+END
+GO
+
+PRINT 'Stock management procedures created successfully.';
+GO
+
+
+-- Update Orders table to add Barangay, Street, and DeliveryTime columns
+USE PotatoCorner_DB;
+GO
+
+-- Add Barangay column
+IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Orders' AND COLUMN_NAME = 'Barangay')
+BEGIN
+    ALTER TABLE Orders
+    ADD Barangay NVARCHAR(100) NULL;
+    PRINT 'Barangay column added to Orders table.';
+END
+ELSE
+BEGIN
+    PRINT 'Barangay column already exists.';
+END
+GO
+
+-- Add Street column
+IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Orders' AND COLUMN_NAME = 'Street')
+BEGIN
+    ALTER TABLE Orders
+    ADD Street NVARCHAR(200) NULL;
+    PRINT 'Street column added to Orders table.';
+END
+ELSE
+BEGIN
+    PRINT 'Street column already exists.';
+END
+GO
+
+-- Add DeliveryTime column (when order was actually delivered/completed)
+IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Orders' AND COLUMN_NAME = 'DeliveryTime')
+BEGIN
+    ALTER TABLE Orders
+    ADD DeliveryTime DATETIME NULL;
+    PRINT 'DeliveryTime column added to Orders table.';
+END
+ELSE
+BEGIN
+    PRINT 'DeliveryTime column already exists.';
+END
+GO
+
+PRINT 'Orders table updated successfully!';
+GO
+
+
+-- Fix OrderItems table to use Flavor column instead of FlavorID
+USE PotatoCorner_DB;
+GO
+
+-- Check current structure
+PRINT 'Current OrderItems table structure:';
+SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, IS_NULLABLE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = 'OrderItems'
+ORDER BY ORDINAL_POSITION;
+GO
+
+-- Add Flavor column if it doesn't exist
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('OrderItems') AND name = 'Flavor')
+BEGIN
+    ALTER TABLE OrderItems
+    ADD Flavor NVARCHAR(100) NULL;
+    PRINT 'Flavor column added to OrderItems table.';
+END
+ELSE
+BEGIN
+    PRINT 'Flavor column already exists in OrderItems table.';
+END
+GO
+
+-- Drop FlavorID column if it exists
+IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('OrderItems') AND name = 'FlavorID')
+BEGIN
+    ALTER TABLE OrderItems
+    DROP COLUMN FlavorID;
+    PRINT 'FlavorID column removed from OrderItems table.';
+END
+ELSE
+BEGIN
+    PRINT 'FlavorID column does not exist.';
+END
+GO
+
+-- Drop Flavor2ID column if it exists
+IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('OrderItems') AND name = 'Flavor2ID')
+BEGIN
+    ALTER TABLE OrderItems
+    DROP COLUMN Flavor2ID;
+    PRINT 'Flavor2ID column removed from OrderItems table.';
+END
+ELSE
+BEGIN
+    PRINT 'Flavor2ID column does not exist.';
+END
+GO
+
+PRINT 'OrderItems table updated successfully!';
+PRINT '';
+PRINT 'New OrderItems table structure:';
+SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, IS_NULLABLE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = 'OrderItems'
+ORDER BY ORDINAL_POSITION;
+
+
+10.?
+-- Complete Stock Cleanup - Remove ALL duplicates
+USE PotatoCorner_DB;
+GO
+
+PRINT '========================================';
+PRINT 'CLEANING UP PRODUCTSIZESTOCK';
+PRINT '========================================';
+
+-- Backup ProductSizeStock quantities
+SELECT ProductID, SizeID, MAX(StockQuantity) AS MaxStock
+INTO #ProductSizeStockBackup
+FROM ProductSizeStock
+GROUP BY ProductID, SizeID;
+
+-- Delete ALL ProductSizeStock entries
+PRINT 'Removing all ProductSizeStock entries...';
+DELETE FROM ProductSizeStock;
+
+-- Re-insert only unique product-size combinations
+PRINT 'Re-inserting unique ProductSizeStock entries...';
+INSERT INTO ProductSizeStock (ProductID, SizeID, StockQuantity, LowStockThreshold, LastUpdated)
+SELECT 
+    ProductID, 
+    SizeID,
+    MaxStock, 
+    10 AS LowStockThreshold, 
+    GETDATE() AS LastUpdated
+FROM #ProductSizeStockBackup;
+
+DROP TABLE #ProductSizeStockBackup;
+
+PRINT 'ProductSizeStock cleanup completed!';
+SELECT COUNT(*) AS TotalProductSizes FROM ProductSizeStock;
+
+PRINT '';
+PRINT '========================================';
+PRINT 'CLEANING UP FLAVORSTOCK';
+PRINT '========================================';
+
+-- Backup FlavorStock quantities
+SELECT FlavorID, MAX(StockQuantity) AS MaxStock
+INTO #FlavorStockBackup
+FROM FlavorStock
+GROUP BY FlavorID;
+
+-- Delete ALL FlavorStock entries
+PRINT 'Removing all FlavorStock entries...';
+DELETE FROM FlavorStock;
+
+-- Re-insert only unique flavors
+PRINT 'Re-inserting unique FlavorStock entries...';
+INSERT INTO FlavorStock (FlavorID, StockQuantity, LowStockThreshold, LastUpdated)
+SELECT 
+    FlavorID, 
+    MaxStock, 
+    5 AS LowStockThreshold, 
+    GETDATE() AS LastUpdated
+FROM #FlavorStockBackup;
+
+DROP TABLE #FlavorStockBackup;
+
+PRINT 'FlavorStock cleanup completed!';
+SELECT COUNT(*) AS TotalFlavors FROM FlavorStock;
+
+PRINT '';
+PRINT '========================================';
+PRINT 'VERIFICATION - FINAL RESULTS';
+PRINT '========================================';
+
+-- Show ProductSizeStock after cleanup
+PRINT 'ProductSizeStock entries (should have no duplicates):';
+SELECT 
+    p.ProductName,
+    ps.SizeName,
+    COUNT(*) AS Count,
+    MAX(pss.StockQuantity) AS Stock
+FROM ProductSizeStock pss
+INNER JOIN Products p ON pss.ProductID = p.ProductID
+INNER JOIN ProductSizes ps ON pss.SizeID = ps.SizeID
+GROUP BY p.ProductName, ps.SizeName
+ORDER BY p.ProductName, ps.SizeName;
+
+-- Show FlavorStock after cleanup
+PRINT 'FlavorStock entries (should have no duplicates):';
+SELECT 
+    pf.FlavorName,
+    COUNT(*) AS Count,
+    fs.StockQuantity AS Stock
+FROM FlavorStock fs
+INNER JOIN ProductFlavors pf ON fs.FlavorID = pf.FlavorID
+GROUP BY pf.FlavorName, fs.StockQuantity
+ORDER BY pf.FlavorName;
+
+PRINT '';
+PRINT 'Cleanup completed successfully!';
+PRINT 'All duplicates have been removed.';
+GO
+
+
+11.
+-- FINAL STOCK FIX - Clean everything and start fresh
+USE PotatoCorner_DB;
+GO
+
+PRINT '========================================';
+PRINT 'CLEANING UP ALL STOCK TABLES';
+PRINT '========================================';
+
+-- Step 1: Clear all stock tables
+DELETE FROM ProductSizeStock;
+DELETE FROM FlavorStock;
+
+PRINT 'All stock tables cleared!';
+PRINT '';
+
+-- Step 2: Fix ProductSizes duplicates if they exist
+PRINT 'Fixing ProductSizes duplicates...';
+
+-- Keep only one SizeID per ProductID+SizeName combination
+WITH SizeToKeep AS (
+    SELECT 
+        ProductID,
+        SizeName,
+        MIN(SizeID) AS KeepSizeID
+    FROM ProductSizes
+    GROUP BY ProductID, SizeName
+)
+-- Update OrderItems to use the kept SizeID
+UPDATE oi
+SET oi.SizeID = stk.KeepSizeID
+FROM OrderItems oi
+INNER JOIN ProductSizes ps ON oi.SizeID = ps.SizeID
+INNER JOIN SizeToKeep stk ON ps.ProductID = stk.ProductID AND ps.SizeName = stk.SizeName
+WHERE oi.SizeID != stk.KeepSizeID;
+
+-- Delete duplicate ProductSizes
+WITH SizeToKeep AS (
+    SELECT 
+        ProductID,
+        SizeName,
+        MIN(SizeID) AS KeepSizeID
+    FROM ProductSizes
+    GROUP BY ProductID, SizeName
+)
+DELETE FROM ProductSizes
+WHERE SizeID NOT IN (SELECT KeepSizeID FROM SizeToKeep);
+
+PRINT 'ProductSizes cleaned!';
+PRINT '';
+
+-- Step 3: Fix ProductFlavors duplicates if they exist
+PRINT 'Fixing ProductFlavors duplicates...';
+
+-- Keep only one FlavorID per FlavorName
+WITH FlavorToKeep AS (
+    SELECT 
+        FlavorName,
+        MIN(FlavorID) AS KeepFlavorID
+    FROM ProductFlavors
+    GROUP BY FlavorName
+)
+-- Update OrderItems to use the kept FlavorID
+UPDATE oi
+SET oi.FlavorID = ftk.KeepFlavorID
+FROM OrderItems oi
+INNER JOIN ProductFlavors pf ON oi.FlavorID = pf.FlavorID
+INNER JOIN FlavorToKeep ftk ON pf.FlavorName = ftk.FlavorName
+WHERE oi.FlavorID != ftk.KeepFlavorID;
+
+-- Delete duplicate ProductFlavors
+WITH FlavorToKeep AS (
+    SELECT 
+        FlavorName,
+        MIN(FlavorID) AS KeepFlavorID
+    FROM ProductFlavors
+    GROUP BY FlavorName
+)
+DELETE FROM ProductFlavors
+WHERE FlavorID NOT IN (SELECT KeepFlavorID FROM FlavorToKeep);
+
+PRINT 'ProductFlavors cleaned!';
+PRINT '';
+
+-- Step 4: Re-create ProductSizeStock with normal quantities (50 units)
+PRINT 'Creating fresh ProductSizeStock...';
+
+INSERT INTO ProductSizeStock (ProductID, SizeID, StockQuantity, LowStockThreshold, LastUpdated)
+SELECT 
+    ps.ProductID,
+    ps.SizeID,
+    50 AS StockQuantity,
+    10 AS LowStockThreshold,
+    GETDATE() AS LastUpdated
+FROM ProductSizes ps;
+
+PRINT 'ProductSizeStock created with 50 units each!';
+PRINT '';
+
+-- Step 5: Re-create FlavorStock with normal quantities (50 units)
+PRINT 'Creating fresh FlavorStock...';
+
+INSERT INTO FlavorStock (FlavorID, StockQuantity, LowStockThreshold, LastUpdated)
+SELECT 
+    FlavorID,
+    50 AS StockQuantity,
+    5 AS LowStockThreshold,
+    GETDATE() AS LastUpdated
+FROM ProductFlavors;
+
+PRINT 'FlavorStock created with 50 units each!';
+PRINT '';
+
+-- Step 6: Verification
+PRINT '========================================';
+PRINT 'VERIFICATION - FINAL COUNTS';
+PRINT '========================================';
+
+SELECT 'ProductFlavors' AS TableName, COUNT(*) AS TotalRecords FROM ProductFlavors
+UNION ALL
+SELECT 'FlavorStock' AS TableName, COUNT(*) AS TotalRecords FROM FlavorStock
+UNION ALL
+SELECT 'ProductSizes' AS TableName, COUNT(*) AS TotalRecords FROM ProductSizes
+UNION ALL
+SELECT 'ProductSizeStock' AS TableName, COUNT(*) AS TotalRecords FROM ProductSizeStock;
+
+PRINT '';
+PRINT 'Expected counts:';
+PRINT '- ProductFlavors: 4 (Cheese, BBQ, Chili BBQ, Bacon & Cheese)';
+PRINT '- FlavorStock: 4';
+PRINT '- ProductSizes: 6 (2 products x 3 sizes each)';
+PRINT '- ProductSizeStock: 6';
+PRINT '';
+
+-- Show what will appear in Update.aspx
+PRINT '========================================';
+PRINT 'PREVIEW OF UPDATE.ASPX';
+PRINT '========================================';
+
+SELECT 
+    p.ProductName + ' - ' + ps.SizeName AS ProductName,
+    'Size' AS Category,
+    pss.StockQuantity AS CurrentStock
+FROM ProductSizeStock pss
+INNER JOIN Products p ON pss.ProductID = p.ProductID
+INNER JOIN ProductSizes ps ON pss.SizeID = ps.SizeID
+UNION ALL
+SELECT 
+    pf.FlavorName AS ProductName,
+    'Flavor' AS Category,
+    fs.StockQuantity AS CurrentStock
+FROM FlavorStock fs
+INNER JOIN ProductFlavors pf ON fs.FlavorID = pf.FlavorID
+ORDER BY Category, ProductName;
+
+PRINT '';
+PRINT '========================================';
+PRINT 'DONE! Stock is now clean with 50 units each.';
+PRINT 'Refresh Update.aspx to see the results.';
+PRINT '========================================';
+GO
+
+
+12.
+-- ========================================
+-- ADD ORDER WORKFLOW ENHANCEMENT
+-- ========================================
+-- This script ensures the Orders table supports the new workflow statuses
+-- Run this script in SQL Server Management Studio
+-- ========================================
+
+USE PotatoCorner_DB;
+GO
+
+PRINT '========================================';
+PRINT 'ORDER WORKFLOW ENHANCEMENT';
+PRINT '========================================';
+PRINT '';
+
+-- Check if DeliveryTime column exists (for marking delivered timestamp)
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Orders') AND name = 'DeliveryTime')
+BEGIN
+    PRINT 'Adding DeliveryTime column...';
+    ALTER TABLE Orders
+    ADD DeliveryTime DATETIME NULL;
+    PRINT 'DeliveryTime column added successfully!';
+END
+ELSE
+BEGIN
+    PRINT 'DeliveryTime column already exists. Skipping...';
+END
+
+PRINT '';
+
+-- Check if PickupTime column exists (for walk-in pickup timestamp)
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Orders') AND name = 'PickupTime')
+BEGIN
+    PRINT 'Adding PickupTime column...';
+    ALTER TABLE Orders
+    ADD PickupTime DATETIME NULL;
+    PRINT 'PickupTime column added successfully!';
+END
+ELSE
+BEGIN
+    PRINT 'PickupTime column already exists. Skipping...';
+END
+
+PRINT '';
+PRINT '========================================';
+PRINT 'ORDER WORKFLOW STATUSES';
+PRINT '========================================';
+PRINT '';
+PRINT 'The system now supports the following order statuses:';
+PRINT '';
+PRINT 'FOR DELIVERY ORDERS:';
+PRINT '  1. Pending - New order placed by customer';
+PRINT '  2. Confirmed - Admin confirmed the order';
+PRINT '  3. Out for Delivery - Admin marked order as out for delivery';
+PRINT '  4. Delivered - Customer marked order as delivered';
+PRINT '  5. Cancelled - Order was cancelled';
+PRINT '';
+PRINT 'FOR WALK-IN ORDERS:';
+PRINT '  1. Pending - New order placed by customer';
+PRINT '  2. Confirmed - Admin confirmed the order';
+PRINT '  3. Picked Up - Admin marked order as picked up by customer';
+PRINT '  4. Cancelled - Order was cancelled';
+PRINT '';
+
+-- Update any old "Confirmed" delivery orders to show proper workflow
+PRINT 'Checking for orders that need status updates...';
+
+-- Count orders by status
+SELECT 
+    OrderStatus,
+    DeliveryType,
+    COUNT(*) AS OrderCount
+FROM Orders
+GROUP BY OrderStatus, DeliveryType
+ORDER BY DeliveryType, OrderStatus;
+
+PRINT '';
+PRINT '========================================';
+PRINT 'VERIFICATION';
+PRINT '========================================';
+PRINT 'Checking Orders table structure...';
+PRINT '';
+
+-- Show the Orders table structure
+SELECT 
+    COLUMN_NAME,
+    DATA_TYPE,
+    CHARACTER_MAXIMUM_LENGTH,
+    IS_NULLABLE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = 'Orders'
+ORDER BY ORDINAL_POSITION;
+
+PRINT '';
+PRINT '========================================';
+PRINT 'SETUP COMPLETE!';
+PRINT '========================================';
+PRINT 'The Orders table now supports:';
+PRINT '- DeliveryTime column (timestamp when customer marks delivered)';
+PRINT '- PickupTime column (timestamp when admin marks picked up)';
+PRINT '- Enhanced order workflow with multiple statuses';
+PRINT '';
+PRINT 'Admin can now:';
+PRINT '1. Confirm new orders';
+PRINT '2. Mark delivery orders as "Out for Delivery"';
+PRINT '3. Mark walk-in orders as "Picked Up"';
+PRINT '';
+PRINT 'Customers can now:';
+PRINT '1. Mark delivery orders as "Delivered" when received';
+PRINT '2. See real-time order status updates';
+PRINT '3. Cancel orders within 10 minutes (if not yet out for delivery)';
+PRINT '========================================';
+GO
+
+
+
+13.---
+-- ========================================
+-- ADD ORDER WORKFLOW ENHANCEMENT
+-- ========================================
+-- This script ensures the Orders table supports the new workflow statuses
+-- Run this script in SQL Server Management Studio
+-- ========================================
+
+USE PotatoCorner_DB;
+GO
+
+PRINT '========================================';
+PRINT 'ORDER WORKFLOW ENHANCEMENT';
+PRINT '========================================';
+PRINT '';
+
+-- Check if DeliveryTime column exists (for marking delivered timestamp)
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Orders') AND name = 'DeliveryTime')
+BEGIN
+    PRINT 'Adding DeliveryTime column...';
+    ALTER TABLE Orders
+    ADD DeliveryTime DATETIME NULL;
+    PRINT 'DeliveryTime column added successfully!';
+END
+ELSE
+BEGIN
+    PRINT 'DeliveryTime column already exists. Skipping...';
+END
+
+PRINT '';
+
+-- Check if PickupTime column exists (for walk-in pickup timestamp)
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Orders') AND name = 'PickupTime')
+BEGIN
+    PRINT 'Adding PickupTime column...';
+    ALTER TABLE Orders
+    ADD PickupTime DATETIME NULL;
+    PRINT 'PickupTime column added successfully!';
+END
+ELSE
+BEGIN
+    PRINT 'PickupTime column already exists. Skipping...';
+END
+
+PRINT '';
+PRINT '========================================';
+PRINT 'ORDER WORKFLOW STATUSES';
+PRINT '========================================';
+PRINT '';
+PRINT 'The system now supports the following order statuses:';
+PRINT '';
+PRINT 'FOR DELIVERY ORDERS:';
+PRINT '  1. Pending - New order placed by customer';
+PRINT '  2. Confirmed - Admin confirmed the order';
+PRINT '  3. Out for Delivery - Admin marked order as out for delivery';
+PRINT '  4. Delivered - Customer marked order as delivered';
+PRINT '  5. Cancelled - Order was cancelled';
+PRINT '';
+PRINT 'FOR WALK-IN ORDERS:';
+PRINT '  1. Pending - New order placed by customer';
+PRINT '  2. Confirmed - Admin confirmed the order';
+PRINT '  3. Picked Up - Admin marked order as picked up by customer';
+PRINT '  4. Cancelled - Order was cancelled';
+PRINT '';
+
+-- Update any old "Confirmed" delivery orders to show proper workflow
+PRINT 'Checking for orders that need status updates...';
+
+-- Count orders by status
+SELECT 
+    OrderStatus,
+    DeliveryType,
+    COUNT(*) AS OrderCount
+FROM Orders
+GROUP BY OrderStatus, DeliveryType
+ORDER BY DeliveryType, OrderStatus;
+
+PRINT '';
+PRINT '========================================';
+PRINT 'VERIFICATION';
+PRINT '========================================';
+PRINT 'Checking Orders table structure...';
+PRINT '';
+
+-- Show the Orders table structure
+SELECT 
+    COLUMN_NAME,
+    DATA_TYPE,
+    CHARACTER_MAXIMUM_LENGTH,
+    IS_NULLABLE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = 'Orders'
+ORDER BY ORDINAL_POSITION;
+
+PRINT '';
+PRINT '========================================';
+PRINT 'SETUP COMPLETE!';
+PRINT '========================================';
+PRINT 'The Orders table now supports:';
+PRINT '- DeliveryTime column (timestamp when customer marks delivered)';
+PRINT '- PickupTime column (timestamp when admin marks picked up)';
+PRINT '- Enhanced order workflow with multiple statuses';
+PRINT '';
+PRINT 'Admin can now:';
+PRINT '1. Confirm new orders';
+PRINT '2. Mark delivery orders as "Out for Delivery"';
+PRINT '3. Mark walk-in orders as "Picked Up"';
+PRINT '';
+PRINT 'Customers can now:';
+PRINT '1. Mark delivery orders as "Delivered" when received';
+PRINT '2. See real-time order status updates';
+PRINT '3. Cancel orders within 10 minutes (if not yet out for delivery)';
+PRINT '========================================';
+GO
+
+
+14. -- ========================================
+-- FIX ORDER STATUS CONSTRAINT
+-- ========================================
+-- This script fixes the OrderStatus CHECK constraint to allow "No Show" status
+-- Run this script in SQL Server Management Studio
+-- ========================================
+
+USE PotatoCorner_DB;
+GO
+
+PRINT '========================================';
+PRINT 'FIXING ORDER STATUS CONSTRAINT';
+PRINT '========================================';
+PRINT '';
+
+-- First, let's see what constraints exist on the Orders table
+PRINT 'Current constraints on Orders table:';
+SELECT 
+    CONSTRAINT_NAME,
+    CONSTRAINT_TYPE,
+    CHECK_CLAUSE
+FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS
+WHERE TABLE_NAME = 'Orders';
+
+PRINT '';
+
+-- Drop the existing CHECK constraint if it exists
+DECLARE @ConstraintName NVARCHAR(200)
+SELECT @ConstraintName = CONSTRAINT_NAME 
+FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS 
+WHERE TABLE_NAME = 'Orders' AND COLUMN_NAME = 'OrderStatus'
+
+IF @ConstraintName IS NOT NULL
+BEGIN
+    PRINT 'Dropping existing OrderStatus constraint: ' + @ConstraintName;
+    DECLARE @SQL NVARCHAR(500) = 'ALTER TABLE Orders DROP CONSTRAINT ' + @ConstraintName;
+    EXEC sp_executesql @SQL;
+    PRINT 'Constraint dropped successfully!';
+END
+ELSE
+BEGIN
+    PRINT 'No existing OrderStatus constraint found.';
+END
+
+PRINT '';
+
+-- Add new CHECK constraint that includes all valid statuses including "No Show"
+PRINT 'Adding new OrderStatus constraint with all valid statuses...';
+ALTER TABLE Orders
+ADD CONSTRAINT CK_Orders_OrderStatus 
+CHECK (OrderStatus IN (
+    'Pending',
+    'Confirmed', 
+    'Out for Delivery',
+    'Delivered',
+    'Picked Up',
+    'No Show',
+    'Cancelled'
+));
+
+PRINT 'New OrderStatus constraint added successfully!';
+PRINT '';
+
+-- Verify the new constraint
+PRINT 'Verifying new constraint:';
+SELECT 
+    CONSTRAINT_NAME,
+    CONSTRAINT_TYPE,
+    CHECK_CLAUSE
+FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS
+WHERE TABLE_NAME = 'Orders';
+
+PRINT '';
+PRINT '========================================';
+PRINT 'CONSTRAINT FIX COMPLETE!';
+PRINT '========================================';
+PRINT 'OrderStatus now accepts these values:';
+PRINT '- Pending';
+PRINT '- Confirmed';
+PRINT '- Out for Delivery';
+PRINT '- Delivered';
+PRINT '- Picked Up';
+PRINT '- No Show';
+PRINT '- Cancelled';
+PRINT '========================================';
+GO
+
+15.
+-- ========================================
+-- FORCE FIX ORDER STATUS CONSTRAINT
+-- ========================================
+-- This script forcefully removes ALL constraints on OrderStatus and creates a new one
+-- Run this script in SQL Server Management Studio
+-- ========================================
+
+USE PotatoCorner_DB;
+GO
+
+PRINT '========================================';
+PRINT 'FORCE FIXING ORDER STATUS CONSTRAINT';
+PRINT '========================================';
+PRINT '';
+
+-- Find and drop ALL constraints on the Orders table that involve OrderStatus
+DECLARE @ConstraintName NVARCHAR(200)
+DECLARE @SQL NVARCHAR(500)
+
+PRINT 'Finding all constraints on Orders table...';
+
+DECLARE constraint_cursor CURSOR FOR
+SELECT name
+FROM sys.check_constraints
+WHERE parent_object_id = OBJECT_ID('Orders')
+
+OPEN constraint_cursor
+FETCH NEXT FROM constraint_cursor INTO @ConstraintName
+
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    PRINT 'Dropping constraint: ' + @ConstraintName;
+    SET @SQL = 'ALTER TABLE Orders DROP CONSTRAINT [' + @ConstraintName + ']';
+    EXEC sp_executesql @SQL;
+    PRINT 'Dropped: ' + @ConstraintName;
+    FETCH NEXT FROM constraint_cursor INTO @ConstraintName
+END
+
+CLOSE constraint_cursor
+DEALLOCATE constraint_cursor
+
+PRINT '';
+PRINT 'All old constraints removed!';
+PRINT '';
+
+-- Add new CHECK constraint that includes all valid statuses including "No Show"
+PRINT 'Adding new OrderStatus constraint with all valid statuses...';
+ALTER TABLE Orders
+ADD CONSTRAINT CK_Orders_OrderStatus 
+CHECK (OrderStatus IN (
+    'Pending',
+    'Confirmed', 
+    'Out for Delivery',
+    'Delivered',
+    'Picked Up',
+    'No Show',
+    'Cancelled'
+));
+
+PRINT 'New OrderStatus constraint added successfully!';
+PRINT '';
+
+-- Verify the new constraint
+PRINT 'Verifying new constraint:';
+SELECT 
+    name AS ConstraintName,
+    definition AS CheckClause
+FROM sys.check_constraints
+WHERE parent_object_id = OBJECT_ID('Orders');
+
+PRINT '';
+PRINT '========================================';
+PRINT 'CONSTRAINT FIX COMPLETE!';
+PRINT '========================================';
+PRINT 'OrderStatus now accepts these values:';
+PRINT '- Pending';
+PRINT '- Confirmed';
+PRINT '- Out for Delivery';
+PRINT '- Delivered';
+PRINT '- Picked Up';
+PRINT '- No Show';
+PRINT '- Cancelled';
+PRINT '========================================';
+GO
+
+
+16.  IMAGEPATH SA AKOA DATABASE KAY WA KOY IMG PATH
+USE PotatoCorner_DB;
+GO
+
+-- Check if column already exists before adding
+IF NOT EXISTS (
+    SELECT * FROM sys.columns 
+    WHERE object_id = OBJECT_ID(N'dbo.Membership') 
+    AND name = 'ProfileImagePath'
+)
+BEGIN
+    ALTER TABLE Membership
+    ADD ProfileImagePath NVARCHAR(500) NULL;
+    
+    PRINT 'ProfileImagePath column added successfully to Membership table.';
+END
+ELSE
+BEGIN
+    PRINT 'ProfileImagePath column already exists in Membership table.';
+END
+GO
+
+
+17.
+

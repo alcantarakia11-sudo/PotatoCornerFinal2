@@ -1,0 +1,274 @@
+========================================
+POTATO CORNER DATABASE UPDATE GUIDE
+========================================
+
+This guide covers all database updates needed for the new features:
+1. Location dropdown (Barangay selection)
+2. Street address field
+3. Stock management system
+
+========================================
+REQUIRED SCRIPTS
+========================================
+
+You need to run these SQL scripts in order:
+
+1. AddLocationColumns.sql
+   - Adds Barangay and Street columns to Orders table
+   - Required for location dropdown feature
+
+2. InitializeStock.sql
+   - Sets up stock management system
+   - Initializes all product and flavor stock to 50 units
+
+
+========================================
+PART 1: ADD LOCATION COLUMNS
+========================================
+
+WHAT THIS DOES:
+- Adds "Barangay" column to Orders table (stores selected location)
+- Adds "Street" column to Orders table (stores street address)
+- Allows customers to select delivery location
+- Validates delivery-only vs walk-in locations
+
+STEP-BY-STEP INSTRUCTIONS:
+
+1. Open SQL Server Management Studio (SSMS)
+2. Connect to your SQL Server instance
+3. Select PotatoCorner_DB database
+4. Open File > Open > File
+5. Select "AddLocationColumns.sql"
+6. Click Execute (or press F5)
+7. Check the Messages tab for success confirmation
+
+EXPECTED RESULTS:
+- "Barangay column added successfully!"
+- "Street column added successfully!"
+- Table structure showing new columns
+
+SAFE TO RUN MULTIPLE TIMES:
+- The script checks if columns already exist
+- Won't create duplicates if run again
+
+
+========================================
+PART 2: INITIALIZE STOCK SYSTEM
+========================================
+
+WHAT THIS DOES:
+- Clears any existing stock data
+- Creates stock entries for all product sizes
+- Creates stock entries for all flavors
+- Sets initial quantities to 50 units each
+
+STEP-BY-STEP INSTRUCTIONS:
+
+1. In SSMS, still connected to PotatoCorner_DB
+2. Open File > Open > File
+3. Select "InitializeStock.sql"
+4. Click Execute (or press F5)
+5. Review the results in Messages tab
+
+EXPECTED RESULTS:
+- Product size stock initialized (6+ entries)
+- Flavor stock initialized (4 entries)
+- All stock set to 50 units
+- Verification summary displayed
+
+SAFE TO RUN MULTIPLE TIMES:
+- Clears existing stock first
+- Resets everything to 50 units
+- Use this to reset stock if needed
+
+
+========================================
+VERIFICATION CHECKLIST
+========================================
+
+After running both scripts, verify:
+
+[ ] Orders table has Barangay column
+[ ] Orders table has Street column
+[ ] ProductSizeStock table has entries
+[ ] FlavorStock table has entries
+[ ] All stock quantities are 50
+[ ] No duplicate stock entries exist
+
+TO VERIFY IN SSMS:
+
+-- Check Orders table structure
+SELECT * FROM INFORMATION_SCHEMA.COLUMNS 
+WHERE TABLE_NAME = 'Orders';
+
+-- Check stock counts
+SELECT 'ProductSizeStock' AS TableName, COUNT(*) AS Count FROM ProductSizeStock
+UNION ALL
+SELECT 'FlavorStock' AS TableName, COUNT(*) AS Count FROM FlavorStock;
+
+-- Check stock quantities
+SELECT * FROM ProductSizeStock;
+SELECT * FROM FlavorStock;
+
+
+========================================
+NEW FEATURES ENABLED
+========================================
+
+LOCATION DROPDOWN (Order.aspx):
+- Customers select their barangay from dropdown
+- System validates delivery-only locations
+- Modal popup if walk-in selected for delivery-only area
+- Street address required for delivery orders
+
+AVAILABLE LOCATIONS:
+
+Delivery Only:
+  - Balisong
+  - Talo-ot
+  - Tulic
+  - Talaga
+  - Bogo
+  - Binlod
+  - Bulasa
+
+Both Walk-in & Delivery:
+  - Poblacion
+  - Lamacan
+  - Langtad
+  - Canbanua
+
+STOCK MANAGEMENT (Update.aspx):
+- Admin can view all product and flavor stock
+- Add stock by entering quantity
+- Low stock alerts when below threshold
+- Automatic stock deduction on orders
+
+STOCK DEDUCTION RULES:
+- Product sizes: 1:1 ratio (3 orders = -3 stock)
+- Flavors: 1:10 ratio (10 orders = -1 stock)
+
+
+========================================
+TROUBLESHOOTING
+========================================
+
+PROBLEM: "Column already exists" error
+SOLUTION: 
+- This is normal if script was run before
+- The script will skip existing columns
+- No action needed
+
+PROBLEM: "Invalid object name 'Orders'"
+SOLUTION:
+- Verify you're connected to PotatoCorner_DB
+- Check that Orders table exists
+- Ensure correct database is selected
+
+PROBLEM: Stock not showing in Update.aspx
+SOLUTION:
+- Refresh browser (Ctrl + F5)
+- Clear browser cache
+- Verify InitializeStock.sql completed successfully
+- Check that you're logged in as admin
+
+PROBLEM: Location dropdown not working
+SOLUTION:
+- Verify AddLocationColumns.sql completed successfully
+- Check that Barangay and Street columns exist
+- Rebuild and restart the web application
+
+PROBLEM: Duplicate stock entries
+SOLUTION:
+- Run InitializeStock.sql again
+- It will clear and reset all stock
+- Refresh Update.aspx page
+
+
+========================================
+FOR EXISTING DATABASES
+========================================
+
+If your database already has orders:
+
+EXISTING ORDERS:
+- Old orders will have NULL for Barangay and Street
+- This is normal and won't cause errors
+- New orders will have location data
+
+EXISTING STOCK:
+- InitializeStock.sql will clear old stock
+- All stock will be reset to 50 units
+- Adjust quantities in script if needed
+
+
+========================================
+ROLLBACK (IF NEEDED)
+========================================
+
+If you need to remove the new columns:
+
+-- Remove location columns (NOT RECOMMENDED)
+ALTER TABLE Orders DROP COLUMN Barangay;
+ALTER TABLE Orders DROP COLUMN Street;
+
+-- Clear stock (if needed)
+DELETE FROM ProductSizeStock;
+DELETE FROM FlavorStock;
+
+Note: Only rollback if absolutely necessary
+Removing columns will lose location data from orders
+
+
+========================================
+SUMMARY OF CHANGES
+========================================
+
+DATABASE SCHEMA CHANGES:
+1. Orders.Barangay (NVARCHAR(100), NULL)
+2. Orders.Street (NVARCHAR(200), NULL)
+
+STOCK TABLES POPULATED:
+1. ProductSizeStock - All product sizes with 50 units
+2. FlavorStock - All flavors with 50 units
+
+NEW FUNCTIONALITY:
+1. Location-based ordering with validation
+2. Street address capture for deliveries
+3. Stock management and tracking
+4. Automatic stock deduction on orders
+5. Low stock alerts for admin
+
+
+========================================
+DEPLOYMENT CHECKLIST
+========================================
+
+For each team member's database:
+
+[ ] Backup database before running scripts
+[ ] Run AddLocationColumns.sql
+[ ] Verify columns added successfully
+[ ] Run InitializeStock.sql
+[ ] Verify stock initialized
+[ ] Test Order.aspx location dropdown
+[ ] Test Update.aspx stock management
+[ ] Place test order to verify stock deduction
+[ ] Verify location data saved in Orders table
+
+
+========================================
+SUPPORT
+========================================
+
+If you encounter issues:
+1. Check Messages tab in SSMS for error details
+2. Verify you're connected to correct database
+3. Ensure you have admin/owner permissions
+4. Review this guide's troubleshooting section
+5. Contact your database administrator
+
+
+========================================
+END OF GUIDE
+========================================

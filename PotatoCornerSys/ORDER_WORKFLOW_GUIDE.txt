@@ -1,0 +1,340 @@
+========================================
+POTATO CORNER ORDER WORKFLOW GUIDE
+========================================
+
+This guide explains the new enhanced order workflow system with multiple statuses
+for both delivery and walk-in orders.
+
+========================================
+OVERVIEW
+========================================
+
+The system now has TWO different workflows:
+
+1. DELIVERY ORDERS - 4-step process with customer confirmation
+2. WALK-IN ORDERS - 3-step process with admin confirmation
+
+========================================
+DELIVERY ORDER WORKFLOW
+========================================
+
+STEP 1: PENDING (New Order)
+---------------------------
+- Customer places order and selects "Delivery"
+- Order appears in Sales.aspx with status "Pending"
+- Admin sees "Confirm Order" button
+
+STEP 2: CONFIRMED (Admin Confirms)
+----------------------------------
+- Admin clicks "Confirm Order" button
+- Status changes to "Confirmed"
+- Admin sees "Out for Delivery" button
+- Customer can still cancel within 10 minutes
+
+STEP 3: OUT FOR DELIVERY (Admin Dispatches)
+-------------------------------------------
+- Admin clicks "Out for Delivery" button
+- Status changes to "Out for Delivery"
+- Customer can NO LONGER cancel
+- Customer sees "Mark Delivered" button in Profile.aspx
+
+STEP 4: DELIVERED (Customer Confirms Receipt)
+---------------------------------------------
+- Customer clicks "Mark Delivered" button
+- Status changes to "Delivered"
+- DeliveryTime timestamp is recorded
+- Order is complete
+
+========================================
+WALK-IN ORDER WORKFLOW
+========================================
+
+STEP 1: PENDING (New Order)
+---------------------------
+- Customer places order and selects "Walk-in"
+- Order appears in Sales.aspx with status "Pending"
+- Admin sees "Confirm Order" button
+
+STEP 2: CONFIRMED (Admin Confirms)
+----------------------------------
+- Admin clicks "Confirm Order" button
+- Status changes to "Confirmed"
+- Admin sees "Mark Picked Up" button
+- Customer can still cancel within 10 minutes
+
+STEP 3: PICKED UP (Admin Confirms Pickup)
+-----------------------------------------
+- Customer arrives and picks up order
+- Admin clicks "Mark Picked Up" button
+- Status changes to "Picked Up"
+- PickupTime timestamp is recorded
+- Order is complete
+
+AUTO NO-SHOW (After 60 Minutes)
+-------------------------------
+- If customer doesn't pick up within 60 minutes
+- Status automatically changes to "No Show"
+- Stock is automatically refunded
+- Money stays with business (NO refund to customer)
+- Customer sees "No Show" status in their profile
+
+========================================
+NO SHOW ORDERS (Walk-in Only)
+========================================
+
+AUTOMATIC TRIGGER:
+- Walk-in orders that stay "Confirmed" for 60+ minutes
+- System automatically changes status to "No Show"
+
+CUSTOMER VIEW:
+- Order shows status: "No Show - Not Picked Up"
+- Displayed in orange color
+- NO money refund (customer forfeits payment)
+- NO points refund
+- Order remains in history as a record
+
+ADMIN VIEW:
+- Order shows status: "No Show"
+- Displayed in orange color (different from cancelled)
+- Revenue COUNTS (money stays with business)
+- Stock AUTOMATICALLY REFUNDED (can be sold again)
+
+BUSINESS LOGIC:
+- Customer paid → Money is yours
+- Customer didn't show → Keep the money
+- Stock refunded → Available for other customers
+- Fair penalty for no-shows
+
+========================================
+CANCELLED ORDERS
+========================================
+
+CUSTOMER CANCELLATION:
+- Available for Pending and Confirmed orders only
+- Must be within 10 minutes of order placement
+- NOT available once order is "Out for Delivery" or "Picked Up"
+- Cancelled orders appear in pale/grayed out color in Sales.aspx
+
+ADMIN VIEW:
+- Cancelled orders show with pale background
+- Text is grayed out and struck through
+- Still visible for record keeping
+- Not included in revenue calculations
+
+========================================
+STATUS BADGES AND COLORS
+========================================
+
+PENDING:
+- Color: Yellow/Amber
+- Meaning: Waiting for admin confirmation
+
+CONFIRMED:
+- Color: Green
+- Meaning: Admin has confirmed, preparing order
+
+OUT FOR DELIVERY:
+- Color: Blue
+- Meaning: Order is on the way to customer
+
+DELIVERED:
+- Color: Dark Green
+- Meaning: Customer has received the order
+
+PICKED UP:
+- Color: Purple
+- Meaning: Customer has picked up walk-in order
+
+NO SHOW:
+- Color: Orange
+- Meaning: Customer didn't pick up within 60 minutes
+- Display: Orange background, orange text
+
+CANCELLED:
+- Color: Red/Pink
+- Meaning: Order was cancelled
+- Display: Pale background, grayed text
+
+========================================
+ADMIN INTERFACE (Sales.aspx)
+========================================
+
+COLUMNS DISPLAYED:
+1. Order ID
+2. Customer Name
+3. Delivery Type (with badge: Delivery or Walk-in)
+4. Date & Time
+5. Amount
+6. Status (with colored badge)
+7. Action (context-sensitive buttons)
+
+ACTION BUTTONS:
+- "Confirm Order" - Shows for Pending orders
+- "Out for Delivery" - Shows for Confirmed delivery orders
+- "Mark Picked Up" - Shows for Confirmed walk-in orders
+
+ORDER SORTING:
+Orders are sorted by status priority:
+1. Pending (needs immediate attention)
+2. Confirmed (needs dispatch/pickup)
+3. Out for Delivery (in progress)
+4. Delivered (completed)
+5. Picked Up (completed)
+6. No Show (completed - customer didn't show)
+7. Cancelled (archived)
+
+Within each status, orders are sorted by date (newest first)
+
+========================================
+CUSTOMER INTERFACE (Profile.aspx)
+========================================
+
+ORDER HISTORY DISPLAY:
+- Shows all orders with current status
+- Color-coded status badges
+- Action buttons based on order state
+
+AVAILABLE ACTIONS:
+1. "Reorder" - Available for all orders
+2. "Cancel Order" - Available for Pending/Confirmed within 10 minutes
+3. "Mark Delivered" - Available for "Out for Delivery" orders only
+
+RESTRICTIONS:
+- Cannot cancel once "Out for Delivery"
+- Cannot cancel walk-in orders once "Picked Up"
+- Cannot cancel after 60 minutes (will auto-change to "No Show" for walk-in)
+- Cannot cancel after 10 minutes from order time
+- Cannot cancel already Delivered/Picked Up/No Show/Cancelled orders
+
+========================================
+DATABASE SETUP
+========================================
+
+REQUIRED SCRIPT:
+Run "AddOrderWorkflowColumns.sql" to add:
+- DeliveryTime column (DATETIME, NULL)
+- PickupTime column (DATETIME, NULL)
+
+EXISTING COLUMNS USED:
+- OrderStatus (VARCHAR) - stores current status
+- DeliveryType (VARCHAR) - stores "Delivery" or "Walk-in"
+- OrderDate (DATETIME) - order placement time
+
+========================================
+IMPLEMENTATION CHECKLIST
+========================================
+
+FOR NEW INSTALLATIONS:
+[ ] Run AddLocationColumns.sql (for barangay/street)
+[ ] Run AddOrderWorkflowColumns.sql (for delivery/pickup times)
+[ ] Run InitializeStock.sql (for stock management)
+[ ] Deploy updated Sales.aspx and Sales.aspx.cs
+[ ] Deploy updated Profile.aspx and Profile.aspx.cs
+[ ] Test delivery order workflow
+[ ] Test walk-in order workflow
+[ ] Test cancellation rules
+
+FOR EXISTING INSTALLATIONS:
+[ ] Backup database before running scripts
+[ ] Run AddOrderWorkflowColumns.sql
+[ ] Update Sales.aspx and Sales.aspx.cs files
+[ ] Update Profile.aspx and Profile.aspx.cs files
+[ ] Test with existing orders
+[ ] Verify cancelled orders display correctly
+
+========================================
+TESTING SCENARIOS
+========================================
+
+TEST 1: DELIVERY ORDER COMPLETE FLOW
+1. Customer places delivery order
+2. Verify status shows "Pending" in Sales.aspx
+3. Admin clicks "Confirm Order"
+4. Verify status changes to "Confirmed"
+5. Admin clicks "Out for Delivery"
+6. Verify status changes to "Out for Delivery"
+7. Customer clicks "Mark Delivered" in Profile.aspx
+8. Verify status changes to "Delivered"
+9. Verify DeliveryTime is recorded
+
+TEST 2: WALK-IN ORDER COMPLETE FLOW
+1. Customer places walk-in order
+2. Verify status shows "Pending" in Sales.aspx
+3. Admin clicks "Confirm Order"
+4. Verify status changes to "Confirmed"
+5. Admin clicks "Mark Picked Up"
+6. Verify status changes to "Picked Up"
+7. Verify PickupTime is recorded
+
+TEST 3: EARLY CANCELLATION
+1. Customer places order
+2. Within 10 minutes, customer clicks "Cancel Order"
+3. Verify status changes to "Cancelled"
+4. Verify order appears grayed out in Sales.aspx
+5. Verify points are refunded if paid with points
+
+TEST 4: LATE CANCELLATION BLOCKED
+1. Customer places order
+2. Wait 11 minutes
+3. Verify "Cancel Order" button is hidden
+4. Verify customer cannot cancel
+
+TEST 5: CANCELLATION AFTER DISPATCH BLOCKED
+1. Customer places delivery order
+2. Admin confirms and marks "Out for Delivery"
+3. Verify "Cancel Order" button is hidden
+4. Verify customer cannot cancel
+
+TEST 6: AUTO NO-SHOW FOR WALK-IN
+1. Customer places walk-in order
+2. Admin confirms order
+3. Wait 60 minutes (or manually change OrderDate in database)
+4. Refresh Sales.aspx
+5. Verify status automatically changes to "No Show"
+6. Verify stock is refunded
+7. Verify revenue still counts the order
+8. Verify customer sees "No Show" in Profile.aspx
+
+========================================
+TROUBLESHOOTING
+========================================
+
+PROBLEM: Buttons not showing correctly
+SOLUTION:
+- Check that DeliveryType column has correct values
+- Verify OrderStatus matches expected values exactly
+- Check for extra spaces in status strings
+
+PROBLEM: Customer can't mark delivered
+SOLUTION:
+- Verify order status is exactly "Out for Delivery"
+- Check that DeliveryType is "Delivery"
+- Ensure Profile.aspx.cs has updated GetMarkDeliveredButton method
+
+PROBLEM: Cancelled orders not grayed out
+SOLUTION:
+- Check Sales.aspx.cs gvOrders_RowDataBound method
+- Verify CSS class "cancelled" is applied
+- Check that .cancelled CSS styles exist
+
+PROBLEM: Status not updating
+SOLUTION:
+- Check database connection string
+- Verify SQL UPDATE queries are executing
+- Check for SQL errors in debug output
+- Ensure page is refreshing after updates
+
+========================================
+SUPPORT
+========================================
+
+For issues or questions:
+1. Check this guide's troubleshooting section
+2. Verify all SQL scripts have been run
+3. Check browser console for JavaScript errors
+4. Review database for correct column structure
+5. Contact your database administrator
+
+========================================
+END OF GUIDE
+========================================

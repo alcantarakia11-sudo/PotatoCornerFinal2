@@ -37,6 +37,23 @@ namespace PotatoCornerSys
 
         protected void Page_Load(object sender, EventArgs e)
         {
+            if (!IsPostBack)
+            {
+                // Auto-fill name from session
+                if (Session["Name"] != null)
+                {
+                    txtName.Text = Session["Name"].ToString();
+                }
+                else if (Session["Fullname"] != null)
+                {
+                    txtName.Text = Session["Fullname"].ToString();
+                }
+                else if (Session["Username"] != null)
+                {
+                    txtName.Text = Session["Username"].ToString();
+                }
+            }
+            
             if (Request.Form["__EVENTTARGET"] == "RemoveCartItem")
             {
                 try
@@ -518,7 +535,8 @@ namespace PotatoCornerSys
         protected void btnConfirm_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrEmpty(txtName.Text.Trim()) ||
-                string.IsNullOrEmpty(txtAddress.Text.Trim()) ||
+                string.IsNullOrEmpty(ddlLocation.SelectedValue) ||
+                string.IsNullOrEmpty(txtStreet.Text.Trim()) ||
                 string.IsNullOrEmpty(txtContact.Text.Trim()))
             {
                 lblErrorMsg.Text = "Please fill in all customer information.";
@@ -542,10 +560,23 @@ namespace PotatoCornerSys
                 return;
             }
 
-            string address = txtAddress.Text.Trim();
-            if (!address.All(c => char.IsLetterOrDigit(c) || c == ' ' || c == ','))
+            string street = txtStreet.Text.Trim();
+            if (!street.All(c => char.IsLetterOrDigit(c) || c == ' ' || c == ',' || c == '.' || c == '-' || c == '#' || c == '/'))
             {
-                lblErrorMsg.Text = "Address can only contain letters, numbers, spaces, and commas.";
+                lblErrorMsg.Text = "Street address contains invalid characters.";
+                lblErrorMsg.Visible = true;
+                return;
+            }
+
+            // Parse location
+            string[] locationParts = ddlLocation.SelectedValue.Split('|');
+            string barangay = locationParts[0];
+            string locationType = locationParts[1];
+
+            // Validate delivery type matches location
+            if (locationType == "Delivery" && hdnDeliveryType.Value == "WalkIn")
+            {
+                lblErrorMsg.Text = "This location is only available for delivery orders.";
                 lblErrorMsg.Visible = true;
                 return;
             }
@@ -624,10 +655,13 @@ namespace PotatoCornerSys
 
             try
             {
-                int orderID = SaveOrderToDatabase(name, address, contact, orderTotal, subtotal, discount, deliveryFee, amountPaid, change);
+                int orderID = SaveOrderToDatabase(name, barangay, street, contact, orderTotal, subtotal, discount, deliveryFee, amountPaid, change);
 
                 if (orderID > 0)
                 {
+                    // Deduct stock for each item
+                    DeductStockForOrder();
+
                     // ✅ FIX: Deduct points if paid with Points, otherwise add earned points
                     int pointsEarned = (int)(orderTotal / 500) * 2;
 
@@ -648,7 +682,7 @@ namespace PotatoCornerSys
 
                     Session["OrderID"] = orderID.ToString();
                     Session["OrderName"] = name;
-                    Session["OrderAddress"] = address;
+                    Session["OrderAddress"] = barangay + ", " + street;
                     Session["OrderContact"] = contact;
                     Session["OrderDelivery"] = hdnDeliveryType.Value == "Delivery" ? "Delivery" : "Walk-in";
                     Session["OrderPickupTime"] = hdnPickupTime.Value;
@@ -685,7 +719,7 @@ namespace PotatoCornerSys
             }
         }
 
-        private int SaveOrderToDatabase(string customerName, string address, string contact,
+        private int SaveOrderToDatabase(string customerName, string barangay, string street, string contact,
             decimal totalAmount, decimal subtotal, decimal discount, decimal deliveryFee,
             decimal amountPaid, decimal change)
         {
@@ -697,13 +731,13 @@ namespace PotatoCornerSys
                 {
                     conn.Open();
 
-                    int customerID = GetOrCreateCustomerID(conn, customerName, address, contact);
+                    int customerID = GetOrCreateCustomerID(conn, customerName, barangay + ", " + street, contact);
 
                     string orderQuery = @"
                         INSERT INTO Orders (CustomerID, OrderDate, DeliveryType, TotalAmount, Discount, 
-                                          AmountPaid, ChangeAmount, PaymentMethod, OrderStatus, PickupTime, TotalQuantity)
+                                          AmountPaid, ChangeAmount, PaymentMethod, OrderStatus, PickupTime, TotalQuantity, Barangay, Street)
                         VALUES (@CustomerID, @OrderDate, @DeliveryType, @TotalAmount, @Discount, 
-                                @AmountPaid, @ChangeAmount, @PaymentMethod, @OrderStatus, @PickupTime, @TotalQuantity);
+                                @AmountPaid, @ChangeAmount, @PaymentMethod, @OrderStatus, @PickupTime, @TotalQuantity, @Barangay, @Street);
                         SELECT SCOPE_IDENTITY();";
 
                     int orderID = 0;
@@ -721,6 +755,8 @@ namespace PotatoCornerSys
                         cmd.Parameters.AddWithValue("@PickupTime",
                             !string.IsNullOrEmpty(hdnPickupTime.Value) ? (object)DateTime.Parse(hdnPickupTime.Value) : DBNull.Value);
                         cmd.Parameters.AddWithValue("@TotalQuantity", Cart.Sum(item => item.Qty));
+                        cmd.Parameters.AddWithValue("@Barangay", barangay);
+                        cmd.Parameters.AddWithValue("@Street", street);
 
                         orderID = Convert.ToInt32(cmd.ExecuteScalar());
                     }
@@ -865,6 +901,67 @@ namespace PotatoCornerSys
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine("Error updating points: " + ex.Message);
+            }
+        }
+
+        private void DeductStockForOrder()
+        {
+            try
+            {
+                string connectionString = ConfigurationManager.ConnectionStrings["PotatoCornerDB"].ConnectionString;
+
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    foreach (var item in Cart)
+                    {
+                        int productID = GetProductID(conn, item.Product);
+                        int? sizeID = GetSizeID(conn, productID, item.Size);
+                        int? flavorID = GetFlavorID(conn, productID, item.Flavor);
+
+                        // Deduct size stock (1:1 ratio - 1 order = 1 stock unit)
+                        if (sizeID.HasValue)
+                        {
+                            string sizeStockQuery = @"
+                                UPDATE ProductSizeStock 
+                                SET StockQuantity = StockQuantity - @Quantity,
+                                    LastUpdated = GETDATE()
+                                WHERE ProductID = @ProductID AND SizeID = @SizeID";
+
+                            using (SqlCommand cmd = new SqlCommand(sizeStockQuery, conn))
+                            {
+                                cmd.Parameters.AddWithValue("@ProductID", productID);
+                                cmd.Parameters.AddWithValue("@SizeID", sizeID.Value);
+                                cmd.Parameters.AddWithValue("@Quantity", item.Qty);
+                                cmd.ExecuteNonQuery();
+                            }
+                        }
+
+                        // Deduct flavor stock (1:10 ratio - 1 flavor unit serves 10 orders)
+                        if (flavorID.HasValue)
+                        {
+                            int flavorUnitsNeeded = (int)Math.Ceiling(item.Qty / 10.0);
+
+                            string flavorStockQuery = @"
+                                UPDATE FlavorStock 
+                                SET StockQuantity = StockQuantity - @FlavorUnits,
+                                    LastUpdated = GETDATE()
+                                WHERE FlavorID = @FlavorID";
+
+                            using (SqlCommand cmd = new SqlCommand(flavorStockQuery, conn))
+                            {
+                                cmd.Parameters.AddWithValue("@FlavorID", flavorID.Value);
+                                cmd.Parameters.AddWithValue("@FlavorUnits", flavorUnitsNeeded);
+                                cmd.ExecuteNonQuery();
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Error deducting stock: " + ex.Message);
             }
         }
 

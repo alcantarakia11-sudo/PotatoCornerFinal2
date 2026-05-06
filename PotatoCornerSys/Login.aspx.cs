@@ -36,21 +36,44 @@ namespace PotatoCornerSys
                     conn.Open();
 
                     string query = @"
-                        SELECT CustomerID, UserName, Fullname, Email, PhoneNumber, [Address], Points, MembershipLevel
+                        SELECT CustomerID, UserName, Fullname, Email, PhoneNumber, [Address], Points, MembershipLevel, [Password]
                         FROM USERS 
-                        WHERE (UserName = @Username OR Email = @Username) AND [Password] = @Password";
+                        WHERE (UserName = @Username OR Email = @Username)";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@Username", username);
-                        cmd.Parameters.AddWithValue("@Password", password);
 
                         using (SqlDataReader reader = cmd.ExecuteReader())
                         {
                             if (reader.Read())
                             {
+                                string storedPassword = reader["Password"].ToString();
+                                
+                                // Check if password is hashed (64 characters for SHA256) or plain text
+                                bool isPasswordValid = false;
+                                
+                                if (storedPassword.Length == 64)
+                                {
+                                    // Password is hashed, verify using hash
+                                    isPasswordValid = PasswordHelper.VerifyPassword(password, storedPassword);
+                                }
+                                else
+                                {
+                                    // Password is plain text (backward compatibility)
+                                    isPasswordValid = (password == storedPassword);
+                                }
+                                
+                                if (!isPasswordValid)
+                                {
+                                    lblError.Text = "Invalid email or password. Please try again.";
+                                    lblError.Visible = true;
+                                    return;
+                                }
                                 Session["CustomerID"] = reader["CustomerID"].ToString();
                                 Session["Username"] = reader["UserName"].ToString();
+                                Session["UserName"] = reader["UserName"].ToString();
+                                Session["Fullname"] = reader["Fullname"].ToString();
                                 Session["Name"] = reader["Fullname"].ToString();
                                 Session["Email"] = reader["Email"].ToString();
                                 Session["Phone"] = reader["PhoneNumber"].ToString();
@@ -60,12 +83,22 @@ namespace PotatoCornerSys
                                 Session["IsLoggedIn"] = true;
                                 Session["MemberSince"] = DateTime.Now.ToString("MMM dd, yyyy");
 
-                                if (reader["MembershipLevel"].ToString() == "Royalty")
+                                string membershipLevel = reader["MembershipLevel"].ToString();
+
+                                if (membershipLevel == "Royalty")
                                 {
                                     Session["HasRoyaltyMembership"] = true;
                                 }
 
-                                Response.Redirect("~/Default.aspx");
+                                // Redirect admin users to Admin.aspx
+                                if (membershipLevel == "Admin")
+                                {
+                                    Response.Redirect("~/Admin.aspx");
+                                }
+                                else
+                                {
+                                    Response.Redirect("~/Default.aspx");
+                                }
                             }
                             else
                             {
