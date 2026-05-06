@@ -20,7 +20,7 @@ namespace PotatoCornerSys
                 LoadLoyaltyPoints();
                 LoadFavoriteOrder();
                 LoadOrderHistory();
-                LoadOrderStats(); // ← FIX #8: COUNT / AGGREGATE
+                LoadOrderStats();
             }
         }
 
@@ -28,6 +28,11 @@ namespace PotatoCornerSys
         {
             Session.Clear();
             Response.Redirect("Login.aspx");
+        }
+
+        protected void btnBackupDatabase_Click(object sender, EventArgs e)
+        {
+            Response.Redirect("DatabaseBackup.aspx");
         }
 
         private void LoadCustomerInfo()
@@ -261,9 +266,6 @@ namespace PotatoCornerSys
             }
         }
 
-        // ═══════════════════════════════════════════════════════
-        // FIX #8 — COUNT / SUM / AVG / GROUP BY (was MISSING)
-        // ═══════════════════════════════════════════════════════
         private void LoadOrderStats()
         {
             try
@@ -277,7 +279,6 @@ namespace PotatoCornerSys
                         int.TryParse(Session["CustomerID"].ToString(), out customerID);
                     if (customerID == 0) return;
 
-                    // COUNT, SUM, AVG, MAX — overall order stats
                     string statsQuery = @"
                         SELECT 
                             COUNT(o.OrderID)       AS TotalOrders,
@@ -306,7 +307,6 @@ namespace PotatoCornerSys
                         }
                     }
 
-                    // GROUP BY — count and total per order status
                     string groupQuery = @"
                         SELECT 
                             o.OrderStatus,
@@ -324,8 +324,6 @@ namespace PotatoCornerSys
                         {
                             adapter.Fill(dt);
                         }
-                        // Bind to a repeater or label on your .aspx as needed
-                        // e.g. rptOrderStats.DataSource = dt; rptOrderStats.DataBind();
                     }
                 }
             }
@@ -342,14 +340,11 @@ namespace PotatoCornerSys
             LoadOrderHistory(null);
         }
 
-        // ═══════════════════════════════════════════════════════
-        // FIX #6 — FILTER now includes status/category filter
-        // ═══════════════════════════════════════════════════════
         private void LoadOrderHistory(string searchOrderID)
         {
             UpdateOrderStatusInDatabase();
             string sortOrder = ddlSortOrder.SelectedValue;
-            string statusFilter = ddlFilterStatus.SelectedValue; // "All","Pending","Confirmed","Delivered","Cancelled"
+            string statusFilter = ddlFilterStatus.SelectedValue;
 
             try
             {
@@ -369,14 +364,11 @@ namespace PotatoCornerSys
                         return;
                     }
 
-                    // Base WHERE clause
                     string whereClause = "WHERE o.CustomerID = @CustomerID";
 
-                    // SEARCH filter (requirement #5)
                     if (!string.IsNullOrEmpty(searchOrderID))
                         whereClause += " AND o.OrderID = @SearchOrderID";
 
-                    // CATEGORY/STATUS filter (requirement #6 — was partial, now full)
                     if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "All")
                         whereClause += " AND o.OrderStatus = @StatusFilter";
 
@@ -426,7 +418,6 @@ namespace PotatoCornerSys
                             }
                         }
 
-                        // Add status filter parameter if active
                         if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "All")
                             cmd.Parameters.AddWithValue("@StatusFilter", statusFilter);
 
@@ -475,6 +466,71 @@ namespace PotatoCornerSys
                 pnlSearchResult.Visible = false;
                 lblNoOrdersMsg.Text = "An error occurred loading your orders. Please try again.";
                 System.Diagnostics.Debug.WriteLine("Error loading order history: " + ex.Message);
+            }
+        }
+
+        // ✅ Helper — refunds points to DB and session if order was paid with Points
+        private void RefundPointsIfPaidWithPoints(SqlConnection conn, string orderID)
+        {
+            if (Session["CustomerID"] == null) return;
+
+            decimal orderTotal = 0;
+            string paymentMethod = "";
+
+            string checkQuery = "SELECT TotalAmount, PaymentMethod FROM Orders WHERE OrderID = @OrderID";
+            using (SqlCommand cmd = new SqlCommand(checkQuery, conn))
+            {
+                cmd.Parameters.AddWithValue("@OrderID", Convert.ToInt32(orderID));
+                using (SqlDataReader reader = cmd.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        orderTotal = Convert.ToDecimal(reader["TotalAmount"]);
+                        paymentMethod = reader["PaymentMethod"].ToString().Trim();
+                    }
+                }
+            }
+
+            if (orderTotal <= 0) return;
+
+            int pointsDelta = 0;
+
+            if (paymentMethod == "Points")
+            {
+                // ✅ Refund the points they spent to pay
+                int pointsSpent = (int)Math.Ceiling(orderTotal / 10m);
+                pointsDelta = pointsSpent; // give back what they paid with
+            }
+            else
+            {
+                // ✅ Deduct the earned points since the order is cancelled
+                int pointsEarned = (int)(orderTotal / 500) * 2;
+                pointsDelta = -pointsEarned; // take back the earned points
+            }
+
+            if (pointsDelta == 0) return;
+
+            string refundQuery = @"
+        UPDATE USERS 
+        SET Points = CASE 
+            WHEN Points + @Points < 0 THEN 0 
+            ELSE Points + @Points 
+        END
+        WHERE CustomerID = @CustomerID";
+
+            using (SqlCommand cmd = new SqlCommand(refundQuery, conn))
+            {
+                cmd.Parameters.AddWithValue("@Points", pointsDelta);
+                cmd.Parameters.AddWithValue("@CustomerID", Convert.ToInt32(Session["CustomerID"]));
+                cmd.ExecuteNonQuery();
+            }
+
+            // Sync session
+            if (Session["Points"] != null)
+            {
+                int currentPoints = Convert.ToInt32(Session["Points"]);
+                int newPoints = currentPoints + pointsDelta;
+                Session["Points"] = Math.Max(0, newPoints).ToString();
             }
         }
 
@@ -557,6 +613,10 @@ namespace PotatoCornerSys
                     using (SqlConnection conn = new SqlConnection(connectionString))
                     {
                         conn.Open();
+
+                        // ✅ Refund points BEFORE cancelling (guard checks OrderStatus != 'Cancelled')
+                        RefundPointsIfPaidWithPoints(conn, orderID);
+
                         string updateQuery = "UPDATE Orders SET OrderStatus = 'Cancelled' WHERE OrderID = @OrderID";
                         using (SqlCommand cmd = new SqlCommand(updateQuery, conn))
                         {
@@ -644,11 +704,17 @@ namespace PotatoCornerSys
             }
         }
 
-        protected string GetCancelButton(DateTime orderDate, string orderID)
+        protected string GetCancelButton(DateTime orderDate, string orderID, string orderStatus)
         {
+            // ✅ Hide if already cancelled, delivered, or confirmed
+            if (orderStatus == "Cancelled" || orderStatus == "Delivered" || orderStatus == "Confirmed")
+                return "";
+
+            // ✅ Time restriction still intact
             TimeSpan timeSinceOrder = DateTime.Now - orderDate;
             if (timeSinceOrder.TotalMinutes <= 10)
                 return $"<button type='button' class='btn-cancel' onclick='cancelOrder({orderID})'>Cancel Order</button>";
+
             return "";
         }
 
@@ -663,7 +729,6 @@ namespace PotatoCornerSys
             LoadOrderHistory(!string.IsNullOrEmpty(searchText) ? searchText : null);
         }
 
-        // FIX #6 — new event handler for status filter dropdown
         protected void ddlFilterStatus_SelectedIndexChanged(object sender, EventArgs e)
         {
             string searchText = txtSearchOrderID.Text.Trim();
@@ -729,6 +794,10 @@ namespace PotatoCornerSys
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
+
+                    // ✅ Refund points BEFORE cancelling (guard checks OrderStatus != 'Cancelled')
+                    RefundPointsIfPaidWithPoints(conn, orderID);
+
                     string updateQuery = "UPDATE Orders SET OrderStatus = 'Cancelled' WHERE OrderID = @OrderID";
                     using (SqlCommand cmd = new SqlCommand(updateQuery, conn))
                     {

@@ -159,15 +159,6 @@ namespace PotatoCornerSys
         protected global::System.Web.UI.WebControls.RadioButton rbFriesTerra;
 
         /// <summary>
-        /// upFriesQty control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.UpdatePanel upFriesQty;
-
-        /// <summary>
         /// rbFriesSourCream control.
         /// </summary>
         /// <remarks>
@@ -202,6 +193,15 @@ namespace PotatoCornerSys
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.RadioButton rbFriesSalt;
+
+        /// <summary>
+        /// upFriesQty control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.UpdatePanel upFriesQty;
 
         /// <summary>
         /// btnFriesMinus control.
@@ -276,15 +276,6 @@ namespace PotatoCornerSys
         protected global::System.Web.UI.WebControls.RadioButton rbChickenMega;
 
         /// <summary>
-        /// upChickenQty control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.UpdatePanel upChickenQty;
-
-        /// <summary>
         /// rbChickenSourCream control.
         /// </summary>
         /// <remarks>
@@ -319,6 +310,15 @@ namespace PotatoCornerSys
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.RadioButton rbChickenSalt;
+
+        /// <summary>
+        /// upChickenQty control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.UpdatePanel upChickenQty;
 
         /// <summary>
         /// btnChickenMinus control.
@@ -384,15 +384,6 @@ namespace PotatoCornerSys
         protected global::System.Web.UI.WebControls.RadioButton rbLoopysMega;
 
         /// <summary>
-        /// upLoopysQty control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.UpdatePanel upLoopysQty;
-
-        /// <summary>
         /// rbLoopysSourCream control.
         /// </summary>
         /// <remarks>
@@ -427,6 +418,15 @@ namespace PotatoCornerSys
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.RadioButton rbLoopysSalt;
+
+        /// <summary>
+        /// upLoopysQty control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.UpdatePanel upLoopysQty;
 
         /// <summary>
         /// btnLoopysMinus control.

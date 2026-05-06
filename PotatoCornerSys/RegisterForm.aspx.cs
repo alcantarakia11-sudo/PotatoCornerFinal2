@@ -182,7 +182,7 @@ namespace PotatoCornerSys
                         cmd.Parameters.AddWithValue("@Points", 0);
                         cmd.Parameters.AddWithValue("@RegistrationDate", DateTime.Now);
                         cmd.Parameters.Add("@ProfilePicture", System.Data.SqlDbType.VarBinary).Value = imageBytes; // ✅ Binary image
-                        cmd.Parameters.AddWithValue("@PictureFileName", fileName);                                  // ✅ File name
+                        cmd.Parameters.AddWithValue("@PictureFileName", "PotatoCornerSys/Uploads/" + fileName);// ✅ File name
 
                         int rowsAffected = cmd.ExecuteNonQuery();
 

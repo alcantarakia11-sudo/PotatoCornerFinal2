@@ -196,13 +196,13 @@
     <form id="form1" runat="server">
         <div class="container">
             <div class="header">
-                <h1>🔒 Database Backup & Recovery</h1>
+                <h1>Database Backup & Recovery</h1>
             </div>
 
             <div class="content">
                 <!-- Backup Section -->
                 <div class="section">
-                    <div class="section-title">📦 Create Database Backup</div>
+                    <div class="section-title">Create Database Backup</div>
                     <div class="section-desc">
                         Create a full backup of your database. This will save all your data including users, orders, products, and membership information.
                     </div>
@@ -212,20 +212,19 @@
 
                 <!-- Export Section -->
                 <div class="section">
-                    <div class="section-title">📊 Export Data to CSV</div>
+                    <div class="section-title">Export Data to CSV</div>
                     <div class="section-desc">
                         Export your data to CSV format for easy viewing and analysis in Excel or other spreadsheet applications.
                     </div>
                     <asp:Button ID="btnExportOrders" runat="server" Text="Export Orders" CssClass="btn btn-export" OnClick="btnExportOrders_Click" />
-                    <asp:Button ID="btnExportUsers" runat="server" Text="Export Users" CssClass="btn btn-export" OnClick="btnExportUsers_Click" />
                     <asp:Label ID="lblExportMessage" runat="server" CssClass="message" Visible="false"></asp:Label>
                 </div>
 
                 <!-- Restore Section -->
                 <div class="section">
-                    <div class="section-title">🔄 Restore Database</div>
+                    <div class="section-title">Restore Database</div>
                     <div class="section-desc">
-                        <strong>⚠️ Warning:</strong> Restoring a backup will replace all current data. Make sure you have a recent backup before proceeding.
+                        <strong>Warning:</strong> Restoring a backup will replace all current data. Make sure you have a recent backup before proceeding.
                     </div>
                     <div class="file-upload">
                         <asp:FileUpload ID="fileRestore" runat="server" />
@@ -236,7 +235,7 @@
 
                 <!-- Backup History -->
                 <div class="section">
-                    <div class="section-title">📋 Recent Backups</div>
+                    <div class="section-title">Recent Backups</div>
                     <div class="backup-history">
                         <asp:Literal ID="litBackupHistory" runat="server"></asp:Literal>
                     </div>

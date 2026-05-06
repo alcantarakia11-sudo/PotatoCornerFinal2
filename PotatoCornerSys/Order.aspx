@@ -6,9 +6,8 @@
 <head runat="server">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: linear-gradient(135deg, #f0f4f8 0%, #e8eef3 100%); overflow-x: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: linear-gradient(135deg, #f0f4f8 0%, #e8eef3 100%); overflow: hidden; }
         
-        /* NAVBAR - CONSISTENT ACROSS ALL PAGES */
         .navbar { 
             background: linear-gradient(135deg, #119247 0%, #0d7336 100%); 
             padding: 15px 50px; 
@@ -21,63 +20,51 @@
             top: 0;
             z-index: 1000;
         }
-        
-        .navbar-logo img { 
-            height: 85px; 
-            filter: drop-shadow(0 2px 6px rgba(0,0,0,0.2)); 
-            transition: transform 0.3s;
-        }
-        
-        .navbar-logo img:hover {
-            transform: scale(1.05);
-        }
-        
-        .navbar-links { 
-            display: flex; 
-            align-items: center;
-            gap: 40px;
-            list-style: none;
-        }
-        
-        .navbar-links a { 
-            color: white; 
-            text-decoration: none; 
-            font-size: 16px;
-            font-weight: 700; 
-            letter-spacing: 0.5px;
+        .navbar-logo img { height: 85px; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.2)); transition: transform 0.3s; }
+        .navbar-logo img:hover { transform: scale(1.05); }
+        .navbar-links { display: flex; align-items: center; gap: 40px; list-style: none; }
+        .navbar-links a { color: white; text-decoration: none; font-size: 16px; font-weight: 700; letter-spacing: 0.5px; transition: all 0.3s; position: relative; }
+        .navbar-links a:hover { color: #f5c800; transform: translateY(-2px); }
+        .navbar-links a::after { content: ''; position: absolute; bottom: -5px; left: 0; width: 0; height: 3px; background: #f5c800; transition: width 0.3s; }
+        .navbar-links a:hover::after { width: 100%; }
+
+        .navbar-links .btn-order-nav {
+            background: linear-gradient(135deg, #e8401c 0%, #c73516 100%);
+            color: white;
+            padding: 12px 28px;
+            border-radius: 8px;
+            font-weight: 800;
+            font-size: 15px;
+            text-transform: uppercase;
+            box-shadow: 0 4px 12px rgba(232,64,28,0.3);
             transition: all 0.3s;
-            position: relative;
+        }
+
+        .navbar-links .btn-order-nav::after {
+            display: none;
+        }
+
+        .navbar-links .btn-order-nav:hover {
+           background: linear-gradient(135deg, #c73516 0%, #a82a12 100%);
+           color: white;
+           transform: translateY(-3px);
+           box-shadow: 0 6px 16px rgba(232,64,28,0.4);
         }
         
-        .navbar-links a:hover { 
-            color: #f5c800; 
-            transform: translateY(-2px);
-        }
+        .pos-container { display: grid; grid-template-columns: 300px 1fr 380px; gap: 20px; padding: 20px; height: calc(100vh - 110px); overflow: hidden; }
         
-        .navbar-links a::after {
-            content: '';
-            position: absolute;
-            bottom: -5px;
-            left: 0;
-            width: 0;
-            height: 3px;
-            background: #f5c800;
-            transition: width 0.3s;
-        }
-        
-        .navbar-links a:hover::after {
-            width: 100%;
-        }
-        
-        .pos-container { display: grid; grid-template-columns: 300px 1fr 360px; gap: 20px; padding: 20px; height: calc(100vh - 95px); }
-        
-        /* LEFT PANEL */
         .left-panel { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow-y: auto; border: 1px solid rgba(17,146,71,0.1); }
         .panel-title { font-size: 17px; font-weight: 900; color: #119247; text-transform: uppercase; margin-bottom: 18px; border-bottom: 4px solid #f5c800; padding-bottom: 10px; letter-spacing: 0.5px; }
         .input-group { margin-bottom: 16px; }
         .input-group label { display: block; font-size: 13px; font-weight: 700; color: #555; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.3px; }
         .input-group input { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; transition: all 0.3s; }
         .input-group input:focus { border-color: #119247; outline: none; box-shadow: 0 0 0 3px rgba(17,146,71,0.1); }
+
+        /* VALIDATION STYLES */
+        .field-error { display: block; color: #dc3545; font-size: 11px; font-weight: 600; margin-top: 5px; min-height: 16px; transition: all 0.2s; }
+        .input-group input.invalid { border-color: #dc3545 !important; box-shadow: 0 0 0 3px rgba(220,53,69,0.15) !important; }
+        .input-group input.valid { border-color: #28a745 !important; box-shadow: 0 0 0 3px rgba(40,167,69,0.15) !important; }
+
         .royalty-row { display: flex; gap: 10px; align-items: flex-end; }
         .royalty-row input { flex: 1; }
         .btn-validate { background: linear-gradient(135deg, #119247 0%, #0d7336 100%); color: white; border: none; padding: 12px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 13px; transition: all 0.3s; box-shadow: 0 2px 8px rgba(17,146,71,0.3); }
@@ -88,7 +75,6 @@
         .status-error { background: #f8d7da; color: #721c24; border-left: 4px solid #dc3545; }
         .status-info { background: #d1ecf1; color: #0c5460; border-left: 4px solid #17a2b8; }
         
-        /* CENTER PANEL */
         .center-panel { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow-y: auto; border: 1px solid rgba(17,146,71,0.1); }
         .product-grid { display: grid; gap: 24px; }
         .product-card { background: linear-gradient(135deg, #fffbf0 0%, #ffffff 100%); border: 3px solid #f5c800; border-radius: 16px; padding: 24px; box-shadow: 0 6px 20px rgba(0,0,0,0.08); transition: all 0.3s; }
@@ -102,7 +88,6 @@
         .size-option:hover, .flavor-option:hover { border-color: #119247; background: #e8f5ee; transform: translateX(4px); }
         .size-option input, .flavor-option input { display: none; }
         .size-option input:checked ~ label, .flavor-option input:checked ~ label { color: #119247; font-weight: 800; }
-        .size-option input:checked, .flavor-option input:checked { }
         .size-option:has(input:checked), .flavor-option:has(input:checked) { border-color: #119247; background: #e8f5ee; box-shadow: 0 2px 8px rgba(17,146,71,0.2); }
         .size-option label, .flavor-option label { cursor: pointer; flex: 1; font-size: 14px; font-weight: 600; }
         .qty-section { margin-top: 20px; display: flex; align-items: center; gap: 14px; padding: 12px; background: #f8f9fa; border-radius: 10px; }
@@ -116,19 +101,18 @@
         .btn-add:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(232,64,28,0.4); }
         .btn-add:active { transform: translateY(0); }
         
-        /* RIGHT PANEL */
         .right-panel { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow-y: auto; display: flex; flex-direction: column; border: 1px solid rgba(17,146,71,0.1); }
-        .cart-section { flex: 1; overflow-y: auto; margin-bottom: 18px; }
-        .cart-empty { text-align: center; color: #aaa; padding: 50px 20px; font-size: 15px; font-weight: 600; }
-        .cart-item { background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); padding: 12px; border-radius: 10px; margin-bottom: 10px; font-size: 13px; border: 2px solid #e8f5ee; transition: all 0.3s; }
+        .cart-section { flex: 1; overflow-y: auto; margin-bottom: 18px; min-height: 180px; }
+        .cart-empty { text-align: center; color: #aaa; padding: 60px 20px; font-size: 16px; font-weight: 600; }
+        .cart-item { background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); padding: 16px; border-radius: 12px; margin-bottom: 12px; font-size: 14px; border: 2px solid #e8f5ee; transition: all 0.3s; }
         .cart-item:hover { border-color: #119247; box-shadow: 0 2px 8px rgba(17,146,71,0.1); }
-        .cart-item-header { display: flex; justify-content: space-between; font-weight: 800; color: #119247; margin-bottom: 6px; font-size: 14px; }
-        .cart-item-details { color: #666; font-size: 12px; line-height: 1.6; }
-        .btn-remove { background: linear-gradient(135deg, #e8401c 0%, #c73516 100%); color: white; border: none; padding: 5px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: 700; transition: all 0.3s; }
+        .cart-item-header { display: flex; justify-content: space-between; align-items: center; font-weight: 800; color: #119247; margin-bottom: 8px; font-size: 15px; }
+        .cart-item-details { color: #555; font-size: 13px; line-height: 1.8; }
+        .btn-remove { background: linear-gradient(135deg, #e8401c 0%, #c73516 100%); color: white; border: none; padding: 7px 16px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 700; transition: all 0.3s; white-space: nowrap; }
         .btn-remove:hover { transform: scale(1.05); box-shadow: 0 2px 6px rgba(232,64,28,0.4); }
-        .cart-totals { border-top: 3px solid #f5c800; padding-top: 14px; margin-top: 14px; background: #fffbf0; padding: 14px; border-radius: 8px; }
-        .total-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; font-weight: 600; }
-        .total-row.grand { font-size: 20px; font-weight: 900; color: #119247; margin-top: 10px; padding-top: 10px; border-top: 2px dashed #119247; }
+        .cart-totals { border-top: 3px solid #f5c800; padding: 16px; margin-top: 14px; background: #fffbf0; border-radius: 8px; }
+        .total-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 15px; font-weight: 600; }
+        .total-row.grand { font-size: 22px; font-weight: 900; color: #119247; margin-top: 12px; padding-top: 12px; border-top: 2px dashed #119247; }
         .delivery-section, .payment-section { margin-top: 18px; }
         .option-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
         .option-btn { padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; text-align: center; font-size: 13px; font-weight: 700; cursor: pointer; background: white; transition: all 0.3s; }
@@ -138,138 +122,28 @@
         .btn-confirm:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(17,146,71,0.4); }
         .btn-confirm:active { transform: translateY(0); }
         
-        /* Scrollbar styling */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
         ::-webkit-scrollbar-thumb { background: #119247; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #0d7336; }
         
-        /* PICKUP TIME MODAL */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.6);
-            z-index: 9999;
-            justify-content: center;
-            align-items: center;
-        }
-        
-        .modal-overlay.active {
-            display: flex;
-        }
-        
-        .modal-box {
-            background: white;
-            border-radius: 16px;
-            padding: 32px;
-            max-width: 450px;
-            width: 90%;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-            animation: modalSlideIn 0.3s ease-out;
-        }
-        
-        @keyframes modalSlideIn {
-            from {
-                transform: translateY(-50px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-        
-        .modal-header {
-            font-size: 22px;
-            font-weight: 800;
-            color: #119247;
-            margin-bottom: 12px;
-            text-align: center;
-        }
-        
-        .modal-message {
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 24px;
-            text-align: center;
-            line-height: 1.6;
-        }
-        
-        .time-slots {
-            max-height: 300px;
-            overflow-y: auto;
-            margin-bottom: 24px;
-        }
-        
-        .time-slot-list {
-            list-style: none;
-        }
-        
-        .time-slot-list label {
-            display: block;
-            padding: 14px 18px;
-            margin-bottom: 10px;
-            background: #f8f9fa;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 14px;
-            font-weight: 600;
-        }
-        
-        .time-slot-list label:hover {
-            border-color: #119247;
-            background: #e8f5ee;
-        }
-        
-        .time-slot-list input[type="radio"]:checked + label {
-            border-color: #119247;
-            background: linear-gradient(135deg, #e8f5ee 0%, #d4edda 100%);
-            color: #119247;
-            box-shadow: 0 2px 8px rgba(17,146,71,0.2);
-        }
-        
-        .modal-buttons {
-            display: flex;
-            gap: 12px;
-        }
-        
-        .modal-btn {
-            flex: 1;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .modal-btn-cancel {
-            background: #e8e8e8;
-            color: #666;
-        }
-        
-        .modal-btn-cancel:hover {
-            background: #d0d0d0;
-        }
-        
-        .modal-btn-confirm {
-            background: linear-gradient(135deg, #119247 0%, #0d7336 100%);
-            color: white;
-        }
-        
-        .modal-btn-confirm:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(17,146,71,0.4);
-        }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; }
+        .modal-box { background: white; border-radius: 16px; padding: 32px; max-width: 450px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3); animation: modalSlideIn 0.3s ease-out; }
+        @keyframes modalSlideIn { from { transform: translateY(-50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal-header { font-size: 22px; font-weight: 800; color: #119247; margin-bottom: 12px; text-align: center; }
+        .modal-message { font-size: 14px; color: #666; margin-bottom: 24px; text-align: center; line-height: 1.6; }
+        .time-slots { max-height: 300px; overflow-y: auto; margin-bottom: 24px; }
+        .time-slot-list { list-style: none; }
+        .time-slot-list label { display: block; padding: 14px 18px; margin-bottom: 10px; background: #f8f9fa; border: 2px solid #e0e0e0; border-radius: 10px; cursor: pointer; transition: all 0.3s; font-size: 14px; font-weight: 600; }
+        .time-slot-list label:hover { border-color: #119247; background: #e8f5ee; }
+        .time-slot-list input[type="radio"]:checked + label { border-color: #119247; background: linear-gradient(135deg, #e8f5ee 0%, #d4edda 100%); color: #119247; box-shadow: 0 2px 8px rgba(17,146,71,0.2); }
+        .modal-buttons { display: flex; gap: 12px; }
+        .modal-btn { flex: 1; padding: 12px 24px; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.3s; text-transform: uppercase; letter-spacing: 0.5px; }
+        .modal-btn-cancel { background: #e8e8e8; color: #666; }
+        .modal-btn-cancel:hover { background: #d0d0d0; }
+        .modal-btn-confirm { background: linear-gradient(135deg, #119247 0%, #0d7336 100%); color: white; }
+        .modal-btn-confirm:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(17,146,71,0.4); }
     </style>
 </head>
 <body>
@@ -282,6 +156,9 @@
             <ul class="navbar-links">
                 <li><a href="Default.aspx">Home</a></li>
                 <li><a href="Menu.aspx">Menu</a></li>
+                <li><a href="Membership.aspx">Membership</a></li>
+                <li><a href="AboutUs.aspx">About Us</a></li>
+                <li><a href="Order.aspx" class="btn-order-nav">Order Now</a></li>
                 <li><asp:LinkButton ID="lnkProfile" runat="server" ForeColor="White" Font-Bold="true" Text="Profile" OnClick="lnkProfile_Click"></asp:LinkButton></li>
             </ul>
         </div>
@@ -290,19 +167,23 @@
             <!-- LEFT PANEL -->
             <div class="left-panel">
                 <div class="panel-title">Customer Info</div>
+
                 <div class="input-group">
                     <label>Name</label>
-                    <asp:TextBox ID="txtName" runat="server" placeholder="Enter name"></asp:TextBox>
+                    <asp:TextBox ID="txtName" runat="server" placeholder="Enter full name"></asp:TextBox>
+                    <span id="errName" class="field-error"></span>
                 </div>
                 <div class="input-group">
                     <label>Address</label>
                     <asp:TextBox ID="txtAddress" runat="server" placeholder="Enter address"></asp:TextBox>
+                    <span id="errAddress" class="field-error"></span>
                 </div>
                 <div class="input-group">
                     <label>Contact</label>
-                    <asp:TextBox ID="txtContact" runat="server" placeholder="Enter contact"></asp:TextBox>
+                    <asp:TextBox ID="txtContact" runat="server" placeholder="e.g. 09123456789"></asp:TextBox>
+                    <span id="errContact" class="field-error"></span>
                 </div>
-                
+
                 <div class="panel-title" style="margin-top:20px;">Royalty Member</div>
                 <div class="royalty-row">
                     <asp:TextBox ID="txtRoyaltyNo" runat="server" placeholder="Card number"></asp:TextBox>
@@ -327,49 +208,19 @@
                         <div class="product-body">
                             <div class="sizes-section">
                                 <div class="section-label">Size</div>
-                                <div class="size-option">
-                                    <asp:RadioButton ID="rbFriesRegular" runat="server" GroupName="FriesSize" />
-                                    <label for="<%= rbFriesRegular.ClientID %>">Regular - PHP 39</label>
-                                </div>
-                                <div class="size-option">
-                                    <asp:RadioButton ID="rbFriesLarge" runat="server" GroupName="FriesSize" />
-                                    <label for="<%= rbFriesLarge.ClientID %>">Large - PHP 58</label>
-                                </div>
-                                <div class="size-option">
-                                    <asp:RadioButton ID="rbFriesJumbo" runat="server" GroupName="FriesSize" />
-                                    <label for="<%= rbFriesJumbo.ClientID %>">Jumbo - PHP 97</label>
-                                </div>
-                                <div class="size-option">
-                                    <asp:RadioButton ID="rbFriesMega" runat="server" GroupName="FriesSize" />
-                                    <label for="<%= rbFriesMega.ClientID %>">Mega - PHP 135</label>
-                                </div>
-                                <div class="size-option">
-                                    <asp:RadioButton ID="rbFriesGiga" runat="server" GroupName="FriesSize" />
-                                    <label for="<%= rbFriesGiga.ClientID %>">Giga - PHP 198</label>
-                                </div>
-                                <div class="size-option">
-                                    <asp:RadioButton ID="rbFriesTerra" runat="server" GroupName="FriesSize" />
-                                    <label for="<%= rbFriesTerra.ClientID %>">Terra - PHP 228</label>
-                                </div>
+                                <div class="size-option"><asp:RadioButton ID="rbFriesRegular" runat="server" GroupName="FriesSize" /><label for="<%= rbFriesRegular.ClientID %>">Regular - PHP 39</label></div>
+                                <div class="size-option"><asp:RadioButton ID="rbFriesLarge" runat="server" GroupName="FriesSize" /><label for="<%= rbFriesLarge.ClientID %>">Large - PHP 58</label></div>
+                                <div class="size-option"><asp:RadioButton ID="rbFriesJumbo" runat="server" GroupName="FriesSize" /><label for="<%= rbFriesJumbo.ClientID %>">Jumbo - PHP 97</label></div>
+                                <div class="size-option"><asp:RadioButton ID="rbFriesMega" runat="server" GroupName="FriesSize" /><label for="<%= rbFriesMega.ClientID %>">Mega - PHP 135</label></div>
+                                <div class="size-option"><asp:RadioButton ID="rbFriesGiga" runat="server" GroupName="FriesSize" /><label for="<%= rbFriesGiga.ClientID %>">Giga - PHP 198</label></div>
+                                <div class="size-option"><asp:RadioButton ID="rbFriesTerra" runat="server" GroupName="FriesSize" /><label for="<%= rbFriesTerra.ClientID %>">Terra - PHP 228</label></div>
                             </div>
                             <div class="flavors-section">
                                 <div class="section-label">Flavor</div>
-                                <div class="flavor-option">
-                                    <asp:RadioButton ID="rbFriesSourCream" runat="server" GroupName="FriesFlavor" />
-                                    <label for="<%= rbFriesSourCream.ClientID %>">Sour Cream</label>
-                                </div>
-                                <div class="flavor-option">
-                                    <asp:RadioButton ID="rbFriesBBQ" runat="server" GroupName="FriesFlavor" />
-                                    <label for="<%= rbFriesBBQ.ClientID %>">BBQ</label>
-                                </div>
-                                <div class="flavor-option">
-                                    <asp:RadioButton ID="rbFriesCheese" runat="server" GroupName="FriesFlavor" />
-                                    <label for="<%= rbFriesCheese.ClientID %>">Cheese</label>
-                                </div>
-                                <div class="flavor-option">
-                                    <asp:RadioButton ID="rbFriesSalt" runat="server" GroupName="FriesFlavor" />
-                                    <label for="<%= rbFriesSalt.ClientID %>">Salt</label>
-                                </div>
+                                <div class="flavor-option"><asp:RadioButton ID="rbFriesSourCream" runat="server" GroupName="FriesFlavor" /><label for="<%= rbFriesSourCream.ClientID %>">Sour Cream</label></div>
+                                <div class="flavor-option"><asp:RadioButton ID="rbFriesBBQ" runat="server" GroupName="FriesFlavor" /><label for="<%= rbFriesBBQ.ClientID %>">BBQ</label></div>
+                                <div class="flavor-option"><asp:RadioButton ID="rbFriesCheese" runat="server" GroupName="FriesFlavor" /><label for="<%= rbFriesCheese.ClientID %>">Cheese</label></div>
+                                <div class="flavor-option"><asp:RadioButton ID="rbFriesSalt" runat="server" GroupName="FriesFlavor" /><label for="<%= rbFriesSalt.ClientID %>">Salt</label></div>
                             </div>
                         </div>
                         <div class="qty-section">
@@ -396,37 +247,16 @@
                         <div class="product-body">
                             <div class="sizes-section">
                                 <div class="section-label">Size</div>
-                                <div class="size-option">
-                                    <asp:RadioButton ID="rbChickenSolo" runat="server" GroupName="ChickenSize" />
-                                    <label for="<%= rbChickenSolo.ClientID %>">Solo - PHP 75</label>
-                                </div>
-                                <div class="size-option">
-                                    <asp:RadioButton ID="rbChickenLarge" runat="server" GroupName="ChickenSize" />
-                                    <label for="<%= rbChickenLarge.ClientID %>">Large Mix - PHP 95</label>
-                                </div>
-                                <div class="size-option">
-                                    <asp:RadioButton ID="rbChickenMega" runat="server" GroupName="ChickenSize" />
-                                    <label for="<%= rbChickenMega.ClientID %>">Mega Mix - PHP 199</label>
-                                </div>
+                                <div class="size-option"><asp:RadioButton ID="rbChickenSolo" runat="server" GroupName="ChickenSize" /><label for="<%= rbChickenSolo.ClientID %>">Solo - PHP 75</label></div>
+                                <div class="size-option"><asp:RadioButton ID="rbChickenLarge" runat="server" GroupName="ChickenSize" /><label for="<%= rbChickenLarge.ClientID %>">Large Mix - PHP 95</label></div>
+                                <div class="size-option"><asp:RadioButton ID="rbChickenMega" runat="server" GroupName="ChickenSize" /><label for="<%= rbChickenMega.ClientID %>">Mega Mix - PHP 199</label></div>
                             </div>
                             <div class="flavors-section">
                                 <div class="section-label">Flavor</div>
-                                <div class="flavor-option">
-                                    <asp:RadioButton ID="rbChickenSourCream" runat="server" GroupName="ChickenFlavor" />
-                                    <label for="<%= rbChickenSourCream.ClientID %>">Sour Cream</label>
-                                </div>
-                                <div class="flavor-option">
-                                    <asp:RadioButton ID="rbChickenBBQ" runat="server" GroupName="ChickenFlavor" />
-                                    <label for="<%= rbChickenBBQ.ClientID %>">BBQ</label>
-                                </div>
-                                <div class="flavor-option">
-                                    <asp:RadioButton ID="rbChickenCheese" runat="server" GroupName="ChickenFlavor" />
-                                    <label for="<%= rbChickenCheese.ClientID %>">Cheese</label>
-                                </div>
-                                <div class="flavor-option">
-                                    <asp:RadioButton ID="rbChickenSalt" runat="server" GroupName="ChickenFlavor" />
-                                    <label for="<%= rbChickenSalt.ClientID %>">Salt</label>
-                                </div>
+                                <div class="flavor-option"><asp:RadioButton ID="rbChickenSourCream" runat="server" GroupName="ChickenFlavor" /><label for="<%= rbChickenSourCream.ClientID %>">Sour Cream</label></div>
+                                <div class="flavor-option"><asp:RadioButton ID="rbChickenBBQ" runat="server" GroupName="ChickenFlavor" /><label for="<%= rbChickenBBQ.ClientID %>">BBQ</label></div>
+                                <div class="flavor-option"><asp:RadioButton ID="rbChickenCheese" runat="server" GroupName="ChickenFlavor" /><label for="<%= rbChickenCheese.ClientID %>">Cheese</label></div>
+                                <div class="flavor-option"><asp:RadioButton ID="rbChickenSalt" runat="server" GroupName="ChickenFlavor" /><label for="<%= rbChickenSalt.ClientID %>">Salt</label></div>
                             </div>
                         </div>
                         <div class="qty-section">
@@ -453,33 +283,15 @@
                         <div class="product-body">
                             <div class="sizes-section">
                                 <div class="section-label">Size</div>
-                                <div class="size-option">
-                                    <asp:RadioButton ID="rbLoopysLarge" runat="server" GroupName="LoopysSize" />
-                                    <label for="<%= rbLoopysLarge.ClientID %>">Large - PHP 75</label>
-                                </div>
-                                <div class="size-option">
-                                    <asp:RadioButton ID="rbLoopysMega" runat="server" GroupName="LoopysSize" />
-                                    <label for="<%= rbLoopysMega.ClientID %>">Mega - PHP 135</label>
-                                </div>
+                                <div class="size-option"><asp:RadioButton ID="rbLoopysLarge" runat="server" GroupName="LoopysSize" /><label for="<%= rbLoopysLarge.ClientID %>">Large - PHP 75</label></div>
+                                <div class="size-option"><asp:RadioButton ID="rbLoopysMega" runat="server" GroupName="LoopysSize" /><label for="<%= rbLoopysMega.ClientID %>">Mega - PHP 135</label></div>
                             </div>
                             <div class="flavors-section">
                                 <div class="section-label">Flavor</div>
-                                <div class="flavor-option">
-                                    <asp:RadioButton ID="rbLoopysSourCream" runat="server" GroupName="LoopysFlavor" />
-                                    <label for="<%= rbLoopysSourCream.ClientID %>">Sour Cream</label>
-                                </div>
-                                <div class="flavor-option">
-                                    <asp:RadioButton ID="rbLoopysBBQ" runat="server" GroupName="LoopysFlavor" />
-                                    <label for="<%= rbLoopysBBQ.ClientID %>">BBQ</label>
-                                </div>
-                                <div class="flavor-option">
-                                    <asp:RadioButton ID="rbLoopysCheese" runat="server" GroupName="LoopysFlavor" />
-                                    <label for="<%= rbLoopysCheese.ClientID %>">Cheese</label>
-                                </div>
-                                <div class="flavor-option">
-                                    <asp:RadioButton ID="rbLoopysSalt" runat="server" GroupName="LoopysFlavor" />
-                                    <label for="<%= rbLoopysSalt.ClientID %>">Salt</label>
-                                </div>
+                                <div class="flavor-option"><asp:RadioButton ID="rbLoopysSourCream" runat="server" GroupName="LoopysFlavor" /><label for="<%= rbLoopysSourCream.ClientID %>">Sour Cream</label></div>
+                                <div class="flavor-option"><asp:RadioButton ID="rbLoopysBBQ" runat="server" GroupName="LoopysFlavor" /><label for="<%= rbLoopysBBQ.ClientID %>">BBQ</label></div>
+                                <div class="flavor-option"><asp:RadioButton ID="rbLoopysCheese" runat="server" GroupName="LoopysFlavor" /><label for="<%= rbLoopysCheese.ClientID %>">Cheese</label></div>
+                                <div class="flavor-option"><asp:RadioButton ID="rbLoopysSalt" runat="server" GroupName="LoopysFlavor" /><label for="<%= rbLoopysSalt.ClientID %>">Salt</label></div>
                             </div>
                         </div>
                         <div class="qty-section">
@@ -504,10 +316,7 @@
             <div class="right-panel">
                 <div class="panel-title">Order Summary</div>
                 <div class="cart-section">
-                    <div id="cartDisplay" runat="server">
-                        <!-- This will be populated by code-behind -->
-                    </div>
-                    <!-- Hidden labels for form processing -->
+                    <div id="cartDisplay" runat="server"></div>
                     <asp:Label ID="lblSubtotal" runat="server" Text="0.00" Style="display:none;"></asp:Label>
                     <asp:Label ID="lblDiscount" runat="server" Text="0.00" Style="display:none;"></asp:Label>
                     <asp:Label ID="lblDeliveryFee" runat="server" Text="0.00" Style="display:none;"></asp:Label>
@@ -522,7 +331,7 @@
                     </div>
                     <asp:HiddenField ID="hdnDeliveryType" runat="server" Value="WalkIn" />
                     <asp:HiddenField ID="hdnPickupTime" runat="server" Value="" />
-                    <asp:Label ID="lblPickupTime" runat="server" Visible="false" 
+                    <asp:Label ID="lblPickupTime" runat="server" Visible="false"
                         Style="display:block; margin-top:10px; font-size:12px; color:#119247; font-weight:700; text-align:center;"></asp:Label>
                 </div>
 
@@ -545,81 +354,169 @@
                 <asp:Button ID="btnConfirm" runat="server" Text="Confirm Order" CssClass="btn-confirm" OnClick="btnConfirm_Click" />
             </div>
         </div>
-        
+
         <!-- PICKUP TIME MODAL -->
         <div id="pickupTimeModal" class="modal-overlay">
             <div class="modal-box">
                 <div class="modal-header">Select Pickup Time</div>
                 <div class="modal-message">Choose when you'd like to pick up your order</div>
                 <div class="time-slots">
-                    <asp:RadioButtonList ID="rblPickupTime" runat="server" CssClass="time-slot-list">
-                    </asp:RadioButtonList>
+                    <asp:RadioButtonList ID="rblPickupTime" runat="server" CssClass="time-slot-list"></asp:RadioButtonList>
                 </div>
                 <div class="modal-buttons">
                     <button type="button" class="modal-btn modal-btn-cancel" onclick="hidePickupTimeModal()">Cancel</button>
-                    <asp:Button ID="btnConfirmPickupTime" runat="server" 
-                        Text="Confirm" 
-                        CssClass="modal-btn modal-btn-confirm" 
-                        OnClick="btnConfirmPickupTime_Click" 
+                    <asp:Button ID="btnConfirmPickupTime" runat="server"
+                        Text="Confirm"
+                        CssClass="modal-btn modal-btn-confirm"
+                        OnClick="btnConfirmPickupTime_Click"
                         CausesValidation="false" />
                 </div>
             </div>
         </div>
-        
     </form>
-    
+
     <script>
+        // ── MODAL ──
         function showPickupTimeModal() {
             document.getElementById('pickupTimeModal').classList.add('active');
         }
-        
         function hidePickupTimeModal() {
             document.getElementById('pickupTimeModal').classList.remove('active');
         }
-        
         function removeCartItem(index) {
             if (confirm('Remove this item from cart?')) {
                 __doPostBack('RemoveCartItem', index);
             }
         }
-        
-        // Prevent scroll to top on postback
-        function maintainScrollPosition() {
-            var scrollPos = document.documentElement.scrollTop || document.body.scrollTop;
-            sessionStorage.setItem('scrollPosition', scrollPos);
-        }
-        
-        function restoreScrollPosition() {
-            var scrollPos = sessionStorage.getItem('scrollPosition');
-            if (scrollPos) {
-                window.scrollTo(0, parseInt(scrollPos));
-                sessionStorage.removeItem('scrollPosition');
-            }
-        }
-        
-        // Save scroll position before postback
-        window.addEventListener('beforeunload', maintainScrollPosition);
-        
-        // Restore scroll position after page load
-        window.addEventListener('load', restoreScrollPosition);
-        
-        // Close modal when clicking outside
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             var modal = document.getElementById('pickupTimeModal');
             if (modal) {
-                modal.addEventListener('click', function(e) {
-                    if (e.target === this) {
-                        hidePickupTimeModal();
-                    }
+                modal.addEventListener('click', function (e) {
+                    if (e.target === this) hidePickupTimeModal();
                 });
             }
-            
-            // Add click handlers to quantity buttons to save scroll position
-            var qtyButtons = document.querySelectorAll('.qty-btn');
-            qtyButtons.forEach(function(btn) {
-                btn.addEventListener('click', maintainScrollPosition);
-            });
         });
+
+        // ── REAL-TIME INPUT VALIDATION ──
+        var nameInput    = document.getElementById('<%= txtName.ClientID %>');
+        var addressInput = document.getElementById('<%= txtAddress.ClientID %>');
+        var contactInput = document.getElementById('<%= txtContact.ClientID %>');
+
+        var errName    = document.getElementById('errName');
+        var errAddress = document.getElementById('errAddress');
+        var errContact = document.getElementById('errContact');
+
+        function setValid(input, errEl) {
+            input.classList.remove('invalid');
+            input.classList.add('valid');
+            errEl.textContent = '';
+        }
+        function setInvalid(input, errEl, msg) {
+            input.classList.remove('valid');
+            input.classList.add('invalid');
+            errEl.textContent = msg;
+        }
+        function clearState(input, errEl) {
+            input.classList.remove('valid', 'invalid');
+            errEl.textContent = '';
+        }
+
+        // NAME
+        nameInput.addEventListener('input', function () {
+            var val = this.value.trim();
+            if (val === '') {
+                clearState(this, errName);
+            } else if (val.length < 2) {
+                setInvalid(this, errName, 'Name must be at least 2 characters.');
+            } else if (/\d/.test(val)) {
+                setInvalid(this, errName, 'Name cannot contain numbers.');
+            } else if (!/^[a-zA-Z\s\-\.]+$/.test(val)) {
+                setInvalid(this, errName, 'Name can only contain letters, spaces, hyphens, or periods.');
+            } else {
+                setValid(this, errName);
+            }
+        });
+        nameInput.addEventListener('blur', function () {
+            if (this.value.trim() === '') setInvalid(this, errName, 'Full name is required.');
+        });
+
+        // ADDRESS
+        addressInput.addEventListener('input', function () {
+            var val = this.value.trim();
+            if (val === '') {
+                clearState(this, errAddress);
+            } else if (val.length < 5) {
+                setInvalid(this, errAddress, 'Please enter a valid address (min 5 characters).');
+            } else if (!/^[a-zA-Z0-9\s,.\-#\/]+$/.test(val)) {
+                setInvalid(this, errAddress, 'Address contains invalid characters.');
+            } else {
+                setValid(this, errAddress);
+            }
+        });
+        addressInput.addEventListener('blur', function () {
+            if (this.value.trim() === '') setInvalid(this, errAddress, 'Address is required.');
+        });
+
+        // CONTACT — digits only, must be 11 digits starting with 09
+        contactInput.addEventListener('input', function () {
+            this.value = this.value.replace(/[^0-9]/g, '');
+            var val = this.value.trim();
+            if (val === '') {
+                clearState(this, errContact);
+            } else if (val.length < 11) {
+                setInvalid(this, errContact, 'Contact number must be 11 digits.');
+            } else if (val.length > 11) {
+                setInvalid(this, errContact, 'Contact number cannot exceed 11 digits.');
+            } else if (!/^09\d{9}$/.test(val)) {
+                setInvalid(this, errContact, 'Contact must start with 09 (e.g. 09123456789).');
+            } else {
+                setValid(this, errContact);
+            }
+        });
+        contactInput.addEventListener('blur', function () {
+            if (this.value.trim() === '') setInvalid(this, errContact, 'Contact number is required.');
+        });
+
+        // BLOCK CONFIRM if frontend validation fails
+        var confirmBtn = document.getElementById('<%= btnConfirm.ClientID %>');
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', function (e) {
+                var nameVal = nameInput.value.trim();
+                var addressVal = addressInput.value.trim();
+                var contactVal = contactInput.value.trim();
+                var hasError = false;
+
+                if (nameVal === '') {
+                    setInvalid(nameInput, errName, 'Full name is required.');
+                    hasError = true;
+                } else if (/\d/.test(nameVal) || !/^[a-zA-Z\s\-\.]+$/.test(nameVal)) {
+                    setInvalid(nameInput, errName, 'Please enter a valid full name.');
+                    hasError = true;
+                }
+
+                if (addressVal === '') {
+                    setInvalid(addressInput, errAddress, 'Address is required.');
+                    hasError = true;
+                } else if (addressVal.length < 5) {
+                    setInvalid(addressInput, errAddress, 'Please enter a complete address.');
+                    hasError = true;
+                }
+
+                if (contactVal === '') {
+                    setInvalid(contactInput, errContact, 'Contact number is required.');
+                    hasError = true;
+                } else if (!/^09\d{9}$/.test(contactVal)) {
+                    setInvalid(contactInput, errContact, 'Enter a valid 11-digit number starting with 09.');
+                    hasError = true;
+                }
+
+                if (hasError) {
+                    e.preventDefault();
+                    nameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return false;
+                }
+            });
+        }
     </script>
 </body>
 </html>

@@ -4,7 +4,6 @@ using System.Data;
 using System.Data.SqlClient;
 using System.IO;
 using System.Text;
-using System.Web;
 using System.Web.UI;
 
 namespace PotatoCornerSys
@@ -15,113 +14,264 @@ namespace PotatoCornerSys
 
         protected void Page_Load(object sender, EventArgs e)
         {
-            // Set backup folder path
             backupFolder = Server.MapPath("~/Backups/");
 
-            // Create backup folder if it doesn't exist
             if (!Directory.Exists(backupFolder))
-            {
                 Directory.CreateDirectory(backupFolder);
-            }
 
             if (!IsPostBack)
-            {
                 LoadBackupHistory();
-            }
         }
 
         protected void btnBackup_Click(object sender, EventArgs e)
         {
             try
             {
-                string connectionString = ConfigurationManager.ConnectionStrings["PotatoCornerDB"].ConnectionString;
-                
-                // Generate backup filename with timestamp
-                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                string backupFileName = $"PotatoCorner_Backup_{timestamp}.bak";
-                string backupPath = Path.Combine(backupFolder, backupFileName);
+                string connectionString = ConfigurationManager
+                    .ConnectionStrings["PotatoCornerDB"].ConnectionString;
+
+                SqlConnectionStringBuilder builder =
+                    new SqlConnectionStringBuilder(connectionString);
+                string dbName = builder.InitialCatalog;
 
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
 
-                    // SQL Server backup command
-                    string backupQuery = $@"
-                        BACKUP DATABASE [PotatoCorner_DB] 
-                        TO DISK = '{backupPath}' 
-                        WITH FORMAT, 
-                        MEDIANAME = 'PotatoCornerBackup',
-                        NAME = 'Full Backup of PotatoCorner_DB';";
+                    // ✅ Export ALL tables into one Excel-friendly CSV
+                    StringBuilder csv = new StringBuilder();
+                    string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
 
-                    using (SqlCommand cmd = new SqlCommand(backupQuery, conn))
+                    // ======== USERS ========
+                    csv.AppendLine("=== USERS ===");
+                    csv.AppendLine("CustomerID,UserName,Fullname,Email,PhoneNumber," +
+                        "Address,Points,MembershipLevel,DateCreated");
+
+                    string usersQuery = @"
+                SELECT CustomerID, UserName, Fullname, Email, PhoneNumber,
+                       [Address], Points, MembershipLevel, DateCreated
+                FROM USERS
+                ORDER BY DateCreated DESC";
+
+                    using (SqlCommand cmd = new SqlCommand(usersQuery, conn))
+                    using (SqlDataReader reader = cmd.ExecuteReader())
                     {
-                        cmd.CommandTimeout = 300; // 5 minutes timeout
-                        cmd.ExecuteNonQuery();
+                        while (reader.Read())
+                        {
+                            csv.AppendLine(
+                                $"{reader["CustomerID"]}," +
+                                $"{reader["UserName"]}," +
+                                $"\"{reader["Fullname"]}\"," +
+                                $"{reader["Email"]}," +
+                                $"{reader["PhoneNumber"]}," +
+                                $"\"{reader["Address"]}\"," +
+                                $"{reader["Points"]}," +
+                                $"{reader["MembershipLevel"]}," +
+                                $"{reader["DateCreated"]}");
+                        }
                     }
-                }
 
-                ShowMessage(lblBackupMessage, $"✓ Backup created successfully: {backupFileName}", "success");
-                LoadBackupHistory();
+                    csv.AppendLine();
+
+                    // ======== ORDERS ========
+                    csv.AppendLine("=== ORDERS ===");
+                    csv.AppendLine("OrderID,OrderDate,CustomerName,Email,PhoneNumber," +
+                        "DeliveryType,TotalAmount,Discount,AmountPaid,ChangeAmount," +
+                        "PaymentMethod,OrderStatus,TotalQuantity");
+
+                    string ordersQuery = @"
+                SELECT o.OrderID, o.OrderDate, u.Fullname AS CustomerName,
+                       u.Email, u.PhoneNumber, o.DeliveryType, o.TotalAmount,
+                       o.Discount, o.AmountPaid, o.ChangeAmount,
+                       o.PaymentMethod, o.OrderStatus, o.TotalQuantity
+                FROM Orders o
+                INNER JOIN USERS u ON o.CustomerID = u.CustomerID
+                ORDER BY o.OrderDate DESC";
+
+                    using (SqlCommand cmd = new SqlCommand(ordersQuery, conn))
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            csv.AppendLine(
+                                $"{reader["OrderID"]}," +
+                                $"{reader["OrderDate"]}," +
+                                $"\"{reader["CustomerName"]}\"," +
+                                $"{reader["Email"]}," +
+                                $"{reader["PhoneNumber"]}," +
+                                $"{reader["DeliveryType"]}," +
+                                $"{reader["TotalAmount"]}," +
+                                $"{reader["Discount"]}," +
+                                $"{reader["AmountPaid"]}," +
+                                $"{reader["ChangeAmount"]}," +
+                                $"{reader["PaymentMethod"]}," +
+                                $"{reader["OrderStatus"]}," +
+                                $"{reader["TotalQuantity"]}");
+                        }
+                    }
+
+                    csv.AppendLine();
+
+                    // ======== ORDER ITEMS ========
+                    csv.AppendLine("=== ORDER ITEMS ===");
+                    csv.AppendLine("OrderItemID,OrderID,ProductName,SizeName," +
+                        "FlavorName,Quantity,UnitPrice,TotalPrice");
+
+                    string itemsQuery = @"
+                SELECT oi.OrderItemID, oi.OrderID, p.ProductName,
+                       ps.SizeName, pf.FlavorName,
+                       oi.Quantity, oi.UnitPrice, oi.TotalPrice
+                FROM OrderItems oi
+                INNER JOIN Products p ON oi.ProductID = p.ProductID
+                LEFT JOIN ProductSizes ps ON oi.SizeID = ps.SizeID
+                LEFT JOIN ProductFlavors pf ON oi.FlavorID = pf.FlavorID
+                ORDER BY oi.OrderID";
+
+                    using (SqlCommand cmd = new SqlCommand(itemsQuery, conn))
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            csv.AppendLine(
+                                $"{reader["OrderItemID"]}," +
+                                $"{reader["OrderID"]}," +
+                                $"\"{reader["ProductName"]}\"," +
+                                $"{(reader["SizeName"] == DBNull.Value ? "N/A" : reader["SizeName"])}," +
+                                $"{(reader["FlavorName"] == DBNull.Value ? "N/A" : reader["FlavorName"])}," +
+                                $"{reader["Quantity"]}," +
+                                $"{reader["UnitPrice"]}," +
+                                $"{reader["TotalPrice"]}");
+                        }
+                    }
+
+                    csv.AppendLine();
+
+                    // ======== MEMBERSHIP ========
+                    csv.AppendLine("=== MEMBERSHIP ===");
+                    csv.AppendLine("CustomerID,Fullname,MembershipNumber," +
+                        "MembershipLevel,RegistrationDate,Points");
+
+                    string memberQuery = @"
+                SELECT m.CustomerID, u.Fullname, m.MembershipNumber,
+                       u.MembershipLevel, m.RegistrationDate, m.Points
+                FROM Membership m
+                INNER JOIN USERS u ON m.CustomerID = u.CustomerID
+                ORDER BY m.RegistrationDate DESC";
+
+                    using (SqlCommand cmd = new SqlCommand(memberQuery, conn))
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            csv.AppendLine(
+                                $"{reader["CustomerID"]}," +
+                                $"\"{reader["Fullname"]}\"," +
+                                $"{reader["MembershipNumber"]}," +
+                                $"{reader["MembershipLevel"]}," +
+                                $"{reader["RegistrationDate"]}," +
+                                $"{reader["Points"]}");
+                        }
+                    }
+
+                    // ✅ Save to project Backups folder for Recent Backups display
+                    string backupFileName = $"PotatoCorner_Backup_{timestamp}.csv";
+                    string savePath = Path.Combine(backupFolder, backupFileName);
+                    File.WriteAllText(savePath, csv.ToString(), Encoding.UTF8);
+
+                    // ✅ Download to user's computer
+                    Response.Clear();
+                    Response.ContentType = "application/vnd.ms-excel";
+                    Response.AddHeader("Content-Disposition",
+                        $"attachment; filename={backupFileName}");
+                    Response.Write(csv.ToString());
+                    Response.End();
+                }
             }
             catch (Exception ex)
             {
-                ShowMessage(lblBackupMessage, $"✗ Backup failed: {ex.Message}", "error");
+                ShowMessage(lblBackupMessage,
+                    $"✗ Backup failed: {ex.Message}", "error");
             }
         }
+
+        
 
         protected void btnExportOrders_Click(object sender, EventArgs e)
         {
             try
             {
-                string connectionString = ConfigurationManager.ConnectionStrings["PotatoCornerDB"].ConnectionString;
-                
+                // ✅ Only export for logged-in user
+                if (Session["CustomerID"] == null)
+                {
+                    ShowMessage(lblExportMessage,
+                        "✗ You must be logged in to export your orders.", "error");
+                    return;
+                }
+
+                int customerID = Convert.ToInt32(Session["CustomerID"]);
+
+                string connectionString = ConfigurationManager
+                    .ConnectionStrings["PotatoCornerDB"].ConnectionString;
+
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
 
                     string query = @"
-                        SELECT 
-                            o.OrderID,
-                            o.OrderDate,
-                            u.Fullname as CustomerName,
-                            u.Email,
-                            u.PhoneNumber,
-                            o.DeliveryType,
-                            o.TotalAmount,
-                            o.OrderStatus,
-                            o.PaymentMethod
-                        FROM Orders o
-                        INNER JOIN USERS u ON o.CustomerID = u.CustomerID
-                        ORDER BY o.OrderDate DESC";
+                SELECT 
+                    o.OrderID,
+                    o.OrderDate,
+                    u.Fullname AS CustomerName,
+                    u.Email,
+                    u.PhoneNumber,
+                    o.DeliveryType,
+                    o.TotalAmount,
+                    o.Discount,
+                    o.AmountPaid,
+                    o.ChangeAmount,
+                    o.PaymentMethod,
+                    o.OrderStatus,
+                    o.TotalQuantity
+                FROM Orders o
+                INNER JOIN USERS u ON o.CustomerID = u.CustomerID
+                WHERE o.CustomerID = @CustomerID
+                ORDER BY o.OrderDate DESC";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
+                        cmd.Parameters.AddWithValue("@CustomerID", customerID);
+
                         using (SqlDataReader reader = cmd.ExecuteReader())
                         {
                             StringBuilder csv = new StringBuilder();
-                            
-                            // Add headers
-                            csv.AppendLine("OrderID,OrderDate,CustomerName,Email,PhoneNumber,DeliveryType,TotalAmount,OrderStatus,PaymentMethod");
+                            csv.AppendLine("OrderID,OrderDate,CustomerName,Email," +
+                                "PhoneNumber,DeliveryType,TotalAmount,Discount," +
+                                "AmountPaid,ChangeAmount,PaymentMethod,OrderStatus,TotalQuantity");
 
-                            // Add data rows
                             while (reader.Read())
                             {
-                                csv.AppendLine($"{reader["OrderID"]}," +
+                                csv.AppendLine(
+                                    $"{reader["OrderID"]}," +
                                     $"{reader["OrderDate"]}," +
                                     $"\"{reader["CustomerName"]}\"," +
                                     $"{reader["Email"]}," +
                                     $"{reader["PhoneNumber"]}," +
                                     $"{reader["DeliveryType"]}," +
                                     $"{reader["TotalAmount"]}," +
+                                    $"{reader["Discount"]}," +
+                                    $"{reader["AmountPaid"]}," +
+                                    $"{reader["ChangeAmount"]}," +
+                                    $"{reader["PaymentMethod"]}," +
                                     $"{reader["OrderStatus"]}," +
-                                    $"{reader["PaymentMethod"]}");
+                                    $"{reader["TotalQuantity"]}");
                             }
 
-                            // Download CSV file
-                            string filename = $"Orders_Export_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+                            string filename =
+                                $"MyOrders_Export_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
                             Response.Clear();
                             Response.ContentType = "text/csv";
-                            Response.AddHeader("Content-Disposition", $"attachment; filename={filename}");
+                            Response.AddHeader("Content-Disposition",
+                                $"attachment; filename={filename}");
                             Response.Write(csv.ToString());
                             Response.End();
                         }
@@ -130,7 +280,8 @@ namespace PotatoCornerSys
             }
             catch (Exception ex)
             {
-                ShowMessage(lblExportMessage, $"✗ Export failed: {ex.Message}", "error");
+                ShowMessage(lblExportMessage,
+                    $"✗ Export Orders failed: {ex.Message}", "error");
             }
         }
 
@@ -138,39 +289,54 @@ namespace PotatoCornerSys
         {
             try
             {
-                string connectionString = ConfigurationManager.ConnectionStrings["PotatoCornerDB"].ConnectionString;
-                
+                // ✅ Only export logged-in user's own profile data
+                if (Session["CustomerID"] == null)
+                {
+                    ShowMessage(lblExportMessage,
+                        "✗ You must be logged in to export your profile.", "error");
+                    return;
+                }
+
+                int customerID = Convert.ToInt32(Session["CustomerID"]);
+
+                string connectionString = ConfigurationManager
+                    .ConnectionStrings["PotatoCornerDB"].ConnectionString;
+
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
 
                     string query = @"
-                        SELECT 
-                            CustomerID,
-                            UserName,
-                            Fullname,
-                            Email,
-                            PhoneNumber,
-                            Address,
-                            Points,
-                            MembershipLevel,
-                            CreatedDate
-                        FROM USERS
-                        ORDER BY CreatedDate DESC";
+                SELECT 
+                    u.CustomerID,
+                    u.UserName,
+                    u.Fullname,
+                    u.Email,
+                    u.PhoneNumber,
+                    u.[Address],
+                    u.Points,
+                    u.MembershipLevel,
+                    u.DateCreated,
+                    m.MembershipNumber
+                FROM USERS u
+                LEFT JOIN Membership m ON u.CustomerID = m.CustomerID
+                WHERE u.CustomerID = @CustomerID";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
+                        cmd.Parameters.AddWithValue("@CustomerID", customerID);
+
                         using (SqlDataReader reader = cmd.ExecuteReader())
                         {
                             StringBuilder csv = new StringBuilder();
-                            
-                            // Add headers
-                            csv.AppendLine("CustomerID,UserName,Fullname,Email,PhoneNumber,Address,Points,MembershipLevel,CreatedDate");
+                            csv.AppendLine("CustomerID,UserName,Fullname,Email," +
+                                "PhoneNumber,Address,Points,MembershipLevel," +
+                                "DateCreated,MembershipNumber");
 
-                            // Add data rows
                             while (reader.Read())
                             {
-                                csv.AppendLine($"{reader["CustomerID"]}," +
+                                csv.AppendLine(
+                                    $"{reader["CustomerID"]}," +
                                     $"{reader["UserName"]}," +
                                     $"\"{reader["Fullname"]}\"," +
                                     $"{reader["Email"]}," +
@@ -178,14 +344,16 @@ namespace PotatoCornerSys
                                     $"\"{reader["Address"]}\"," +
                                     $"{reader["Points"]}," +
                                     $"{reader["MembershipLevel"]}," +
-                                    $"{reader["CreatedDate"]}");
+                                    $"{reader["DateCreated"]}," +
+                                    $"{(reader["MembershipNumber"] == DBNull.Value ? "N/A" : reader["MembershipNumber"])}");
                             }
 
-                            // Download CSV file
-                            string filename = $"Users_Export_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+                            string filename =
+                                $"MyProfile_Export_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
                             Response.Clear();
                             Response.ContentType = "text/csv";
-                            Response.AddHeader("Content-Disposition", $"attachment; filename={filename}");
+                            Response.AddHeader("Content-Disposition",
+                                $"attachment; filename={filename}");
                             Response.Write(csv.ToString());
                             Response.End();
                         }
@@ -194,7 +362,8 @@ namespace PotatoCornerSys
             }
             catch (Exception ex)
             {
-                ShowMessage(lblExportMessage, $"✗ Export failed: {ex.Message}", "error");
+                ShowMessage(lblExportMessage,
+                    $"✗ Export Profile failed: {ex.Message}", "error");
             }
         }
 
@@ -204,55 +373,63 @@ namespace PotatoCornerSys
             {
                 if (!fileRestore.HasFile)
                 {
-                    ShowMessage(lblRestoreMessage, "✗ Please select a backup file to restore.", "error");
+                    ShowMessage(lblRestoreMessage,
+                        "✗ Please select a backup file to restore.", "error");
                     return;
                 }
 
-                // Validate file extension
                 string fileExtension = Path.GetExtension(fileRestore.FileName).ToLower();
                 if (fileExtension != ".bak")
                 {
-                    ShowMessage(lblRestoreMessage, "✗ Invalid file type. Please select a .bak file.", "error");
+                    ShowMessage(lblRestoreMessage,
+                        "✗ Invalid file type. Please select a .bak file.", "error");
                     return;
                 }
 
-                // Save uploaded file temporarily
                 string tempPath = Path.Combine(backupFolder, "temp_restore.bak");
                 fileRestore.SaveAs(tempPath);
 
-                string connectionString = ConfigurationManager.ConnectionStrings["PotatoCornerDB"].ConnectionString;
-                
-                using (SqlConnection conn = new SqlConnection(connectionString))
+                string connectionString = ConfigurationManager
+                    .ConnectionStrings["PotatoCornerDB"].ConnectionString;
+
+                SqlConnectionStringBuilder builder =
+                    new SqlConnectionStringBuilder(connectionString);
+                string dbName = builder.InitialCatalog;
+
+                // ✅ Must connect to master to restore
+                SqlConnectionStringBuilder masterBuilder =
+                    new SqlConnectionStringBuilder(connectionString);
+                masterBuilder.InitialCatalog = "master";
+
+                using (SqlConnection conn = new SqlConnection(masterBuilder.ConnectionString))
                 {
                     conn.Open();
 
-                    // Restore database
                     string restoreQuery = $@"
-                        USE master;
-                        ALTER DATABASE [PotatoCorner_DB] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-                        RESTORE DATABASE [PotatoCorner_DB] 
-                        FROM DISK = '{tempPath}' 
+                        ALTER DATABASE [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+                        RESTORE DATABASE [{dbName}] 
+                        FROM DISK = @TempPath 
                         WITH REPLACE;
-                        ALTER DATABASE [PotatoCorner_DB] SET MULTI_USER;";
+                        ALTER DATABASE [{dbName}] SET MULTI_USER;";
 
                     using (SqlCommand cmd = new SqlCommand(restoreQuery, conn))
                     {
-                        cmd.CommandTimeout = 300; // 5 minutes timeout
+                        cmd.Parameters.AddWithValue("@TempPath", tempPath);
+                        cmd.CommandTimeout = 300;
                         cmd.ExecuteNonQuery();
                     }
                 }
 
-                // Delete temporary file
                 if (File.Exists(tempPath))
-                {
                     File.Delete(tempPath);
-                }
 
-                ShowMessage(lblRestoreMessage, "✓ Database restored successfully!", "success");
+                ShowMessage(lblRestoreMessage,
+                    "✓ Database restored successfully!", "success");
             }
             catch (Exception ex)
             {
-                ShowMessage(lblRestoreMessage, $"✗ Restore failed: {ex.Message}", "error");
+                ShowMessage(lblRestoreMessage,
+                    $"✗ Restore failed: {ex.Message}", "error");
             }
         }
 
@@ -265,21 +442,26 @@ namespace PotatoCornerSys
 
                 if (files.Length == 0)
                 {
-                    litBackupHistory.Text = "<div class='info message'>No backups found. Create your first backup above.</div>";
+                    litBackupHistory.Text =
+                        "<div class='info message'>No backups found. " +
+                        "Create your first backup above.</div>";
                     return;
                 }
 
                 StringBuilder html = new StringBuilder();
-                
-                // Sort by date descending
-                Array.Sort(files, (x, y) => y.LastWriteTime.CompareTo(x.LastWriteTime));
+                Array.Sort(files, (x, y) =>
+                    y.LastWriteTime.CompareTo(x.LastWriteTime));
 
                 foreach (FileInfo file in files)
                 {
                     html.AppendLine("<div class='backup-item'>");
                     html.AppendLine("  <div class='backup-info'>");
-                    html.AppendLine($"    <div class='backup-name'>{file.Name}</div>");
-                    html.AppendLine($"    <div class='backup-date'>Created: {file.LastWriteTime:MMM dd, yyyy h:mm tt} | Size: {FormatFileSize(file.Length)}</div>");
+                    html.AppendLine(
+                        $"    <div class='backup-name'>{file.Name}</div>");
+                    html.AppendLine(
+                        $"    <div class='backup-date'>Created: " +
+                        $"{file.LastWriteTime:MMM dd, yyyy h:mm tt} | " +
+                        $"Size: {FormatFileSize(file.Length)}</div>");
                     html.AppendLine("  </div>");
                     html.AppendLine("</div>");
                 }
@@ -288,7 +470,9 @@ namespace PotatoCornerSys
             }
             catch (Exception ex)
             {
-                litBackupHistory.Text = $"<div class='error message'>Error loading backup history: {ex.Message}</div>";
+                litBackupHistory.Text =
+                    $"<div class='error message'>" +
+                    $"Error loading backup history: {ex.Message}</div>";
             }
         }
 
@@ -297,7 +481,7 @@ namespace PotatoCornerSys
             string[] sizes = { "B", "KB", "MB", "GB" };
             double len = bytes;
             int order = 0;
-            
+
             while (len >= 1024 && order < sizes.Length - 1)
             {
                 order++;
@@ -307,7 +491,8 @@ namespace PotatoCornerSys
             return $"{len:0.##} {sizes[order]}";
         }
 
-        private void ShowMessage(System.Web.UI.WebControls.Label label, string message, string type)
+        private void ShowMessage(System.Web.UI.WebControls.Label label,
+            string message, string type)
         {
             label.Text = message;
             label.CssClass = $"message {type}";

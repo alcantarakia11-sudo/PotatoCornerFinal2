@@ -97,6 +97,7 @@ namespace PotatoCornerSys
         protected void btnValidate_Click(object sender, EventArgs e)
         {
             string royaltyNo = txtRoyaltyNo.Text.Trim();
+
             if (string.IsNullOrEmpty(royaltyNo))
             {
                 lblRoyaltyMsg.Text = "Please enter a royalty number.";
@@ -110,11 +111,58 @@ namespace PotatoCornerSys
                 !char.IsLetter(royaltyNo[1]) ||
                 !royaltyNo.Substring(2).All(char.IsDigit))
             {
-                lblRoyaltyMsg.Text = "✗ Invalid royalty number format. Should be 2 letters + 5 numbers (e.g., PC12345)";
+                lblRoyaltyMsg.Text = "Invalid royalty number format. Should be 2 letters + 5 numbers (e.g., PC12345)";
                 lblRoyaltyMsg.CssClass = "status-msg status-error";
                 lblRoyaltyMsg.Visible = true;
                 hdnIsRoyalty.Value = "false";
                 return;
+            }
+
+            bool isLoggedIn = Session["CustomerID"] != null;
+            bool hasRoyalty = Session["HasRoyaltyMembership"] != null && (bool)Session["HasRoyaltyMembership"];
+            string storedRoyaltyNo = Session["RoyaltyNumber"]?.ToString();
+
+            if (isLoggedIn && hasRoyalty && !string.IsNullOrEmpty(storedRoyaltyNo))
+            {
+                if (!royaltyNo.Equals(storedRoyaltyNo, StringComparison.OrdinalIgnoreCase))
+                {
+                    lblRoyaltyMsg.Text = "Card number doesn't match to the user card number.";
+                    lblRoyaltyMsg.CssClass = "status-msg status-error";
+                    lblRoyaltyMsg.Visible = true;
+                    hdnIsRoyalty.Value = "false";
+                    return;
+                }
+
+                // ✅ Flexible name matching
+                string storedFullName = Session["Fullname"]?.ToString();
+
+                if (!string.IsNullOrEmpty(storedFullName))
+                {
+                    Func<string, string> normalize = s =>
+                        System.Text.RegularExpressions.Regex
+                            .Replace(s.Trim().ToLower(), @"\s+", " ");
+
+                    string enteredName = normalize(txtName.Text);
+                    string accountName = normalize(storedFullName);
+
+                    if (enteredName != accountName)
+                    {
+                        string[] enteredParts = enteredName.Split(' ');
+                        string[] accountParts = accountName.Split(' ');
+
+                        bool firstMatch = enteredParts[0] == accountParts[0];
+                        bool lastMatch = enteredParts.Last() == accountParts.Last();
+
+                        if (!firstMatch || !lastMatch)
+                        {
+                            lblRoyaltyMsg.Text = "Customer name doesn't match the royalty card holder.";
+                            lblRoyaltyMsg.CssClass = "status-msg status-error";
+                            lblRoyaltyMsg.Visible = true;
+                            hdnIsRoyalty.Value = "false";
+                            return;
+                        }
+                    }
+                }
             }
 
             try
@@ -126,10 +174,10 @@ namespace PotatoCornerSys
                     conn.Open();
 
                     string query = @"
-                        SELECT u.CustomerID, u.Fullname, u.MembershipLevel
-                        FROM USERS u
-                        INNER JOIN Membership m ON u.CustomerID = m.CustomerID
-                        WHERE u.MembershipLevel = 'Royalty' AND m.MembershipNumber = @MembershipNumber";
+                SELECT u.CustomerID, u.Fullname, u.MembershipLevel
+                FROM USERS u
+                INNER JOIN Membership m ON u.CustomerID = m.CustomerID
+                WHERE u.MembershipLevel = 'Royalty' AND m.MembershipNumber = @MembershipNumber";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
@@ -139,7 +187,7 @@ namespace PotatoCornerSys
                         {
                             if (reader.Read())
                             {
-                                lblRoyaltyMsg.Text = "✓ Royalty number validated! 10% discount applied.";
+                                lblRoyaltyMsg.Text = "Royalty number validated! 10% discount applied.";
                                 lblRoyaltyMsg.CssClass = "status-msg status-success";
                                 lblRoyaltyMsg.Visible = true;
                                 hdnIsRoyalty.Value = "true";
@@ -150,19 +198,17 @@ namespace PotatoCornerSys
                     }
                 }
 
-                lblRoyaltyMsg.Text = "✗ Royalty number not found. Please check and try again.";
+                lblRoyaltyMsg.Text = "Royalty number not found. Please check and try again.";
                 lblRoyaltyMsg.CssClass = "status-msg status-error";
                 lblRoyaltyMsg.Visible = true;
                 hdnIsRoyalty.Value = "false";
             }
             catch (Exception ex)
             {
-                bool hasRoyaltyMembership = Session["HasRoyaltyMembership"] != null && (bool)Session["HasRoyaltyMembership"];
-                string sessionRoyaltyNumber = Session["RoyaltyNumber"]?.ToString();
-
-                if (hasRoyaltyMembership && !string.IsNullOrEmpty(sessionRoyaltyNumber) && sessionRoyaltyNumber == royaltyNo)
+                if (hasRoyalty && !string.IsNullOrEmpty(storedRoyaltyNo) &&
+                    storedRoyaltyNo.Equals(royaltyNo, StringComparison.OrdinalIgnoreCase))
                 {
-                    lblRoyaltyMsg.Text = "✓ Royalty number validated! 10% discount applied.";
+                    lblRoyaltyMsg.Text = "Royalty number validated! 10% discount applied.";
                     lblRoyaltyMsg.CssClass = "status-msg status-success";
                     lblRoyaltyMsg.Visible = true;
                     hdnIsRoyalty.Value = "true";
@@ -170,7 +216,7 @@ namespace PotatoCornerSys
                 }
                 else
                 {
-                    lblRoyaltyMsg.Text = "✗ Unable to validate royalty number. Please try again later.";
+                    lblRoyaltyMsg.Text = "Card number doesn't match to the user card number.";
                     lblRoyaltyMsg.CssClass = "status-msg status-error";
                     lblRoyaltyMsg.Visible = true;
                     hdnIsRoyalty.Value = "false";
@@ -263,7 +309,6 @@ namespace PotatoCornerSys
             }
 
             int qty = int.Parse(hdnFriesQty.Value);
-
             Cart.Add(new CartItem { Product = "French Fries", Size = size, Flavor = flavor, Qty = qty, UnitPrice = price });
 
             lblErrorMsg.Text = $"Added: {qty}x French Fries ({size}, {flavor}) - PHP {price}";
@@ -433,6 +478,7 @@ namespace PotatoCornerSys
             }
         }
 
+        // ✅ Blocks Points selection if balance is insufficient
         protected void btnPayment_Click(object sender, EventArgs e)
         {
             Button btn = (Button)sender;
@@ -440,11 +486,35 @@ namespace PotatoCornerSys
             btnMayaBank.CssClass = "option-btn";
             btnGCash.CssClass = "option-btn";
             btnPoints.CssClass = "option-btn";
-            btn.CssClass = "option-btn selected";
 
+            if (btn.ID == "btnPoints")
+            {
+                decimal currentTotal = 0;
+                decimal.TryParse(lblTotal.Text, out currentTotal);
+
+                int userPoints = 0;
+                if (Session["Points"] != null)
+                    int.TryParse(Session["Points"].ToString(), out userPoints);
+
+                decimal pointsValue = userPoints * 10m; // 1 point = PHP 10
+
+                if (userPoints == 0 || pointsValue < currentTotal)
+                {
+                    lblErrorMsg.Text = $"Insufficient points balance. You have {userPoints} pts " +
+                                       $"(PHP {pointsValue:0.00}) but the total is PHP {currentTotal:0.00}.";
+                    lblErrorMsg.CssClass = "status-msg status-error";
+                    lblErrorMsg.Visible = true;
+                    hdnPaymentMethod.Value = "";
+                    return;
+                }
+            }
+
+            btn.CssClass = "option-btn selected";
             hdnPaymentMethod.Value = btn.Text;
+            lblErrorMsg.Visible = false;
         }
 
+        // ✅ Points deduction + safety re-check before processing
         protected void btnConfirm_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrEmpty(txtName.Text.Trim()) ||
@@ -529,6 +599,25 @@ namespace PotatoCornerSys
             }
             else
             {
+                // ✅ Safety re-check — cart total may have changed after Points was selected
+                int userPoints = 0;
+                if (Session["Points"] != null)
+                    int.TryParse(Session["Points"].ToString(), out userPoints);
+
+                decimal pointsValue = userPoints * 10m;
+
+                if (pointsValue < orderTotal)
+                {
+                    lblErrorMsg.Text = $"Insufficient points balance. You have {userPoints} pts " +
+                                       $"(PHP {pointsValue:0.00}) but the total is PHP {orderTotal:0.00}. " +
+                                       $"Please select another payment method.";
+                    lblErrorMsg.CssClass = "status-msg status-error";
+                    lblErrorMsg.Visible = true;
+                    hdnPaymentMethod.Value = "";
+                    btnPoints.CssClass = "option-btn";
+                    return;
+                }
+
                 amountPaid = orderTotal;
                 change = 0;
             }
@@ -539,8 +628,23 @@ namespace PotatoCornerSys
 
                 if (orderID > 0)
                 {
+                    // ✅ FIX: Deduct points if paid with Points, otherwise add earned points
                     int pointsEarned = (int)(orderTotal / 500) * 2;
-                    UpdateCustomerPoints(pointsEarned);
+
+                    if (hdnPaymentMethod.Value == "Points")
+                    {
+                        // Points used to pay = orderTotal / 10 (1 pt = PHP 10), rounded up
+                        int pointsUsed = (int)Math.Ceiling(orderTotal / 10m);
+                        // Net delta: subtract points spent, then add points earned
+                        int pointsDelta = pointsEarned - pointsUsed;
+                        UpdateCustomerPoints(pointsDelta);
+                        Session["PointsEarned"] = "0"; // no bonus points shown on receipt when paying with points
+                    }
+                    else
+                    {
+                        UpdateCustomerPoints(pointsEarned);
+                        Session["PointsEarned"] = pointsEarned.ToString();
+                    }
 
                     Session["OrderID"] = orderID.ToString();
                     Session["OrderName"] = name;
@@ -556,15 +660,11 @@ namespace PotatoCornerSys
                     Session["PaymentMethod"] = hdnPaymentMethod.Value;
                     Session["AmountPaid"] = amountPaid.ToString("0.00");
                     Session["Change"] = change.ToString("0.00");
-                    Session["PointsEarned"] = pointsEarned.ToString();
 
                     if (!string.IsNullOrEmpty(txtRoyaltyNo.Text.Trim()))
                         Session["RoyaltyNo"] = txtRoyaltyNo.Text.Trim();
 
-                    // ✅ Save cart copy for receipt BEFORE clearing
                     Session["ReceiptCart"] = Session["Cart"];
-
-                    // Clear cart after successful order
                     Session["Cart"] = new List<CartItem>();
 
                     Response.Redirect("~/Receipt.aspx");
@@ -723,36 +823,48 @@ namespace PotatoCornerSys
             }
         }
 
-        private void UpdateCustomerPoints(int pointsEarned)
+        // ✅ UPDATED — handles both earning (positive delta) and spending (negative delta) points
+        private void UpdateCustomerPoints(int pointsDelta)
         {
-            if (Session["CustomerID"] != null && pointsEarned > 0)
+            if (Session["CustomerID"] == null) return;
+            if (pointsDelta == 0) return;
+
+            try
             {
-                try
+                string connectionString = ConfigurationManager.ConnectionStrings["PotatoCornerDB"].ConnectionString;
+
+                using (SqlConnection conn = new SqlConnection(connectionString))
                 {
-                    string connectionString = ConfigurationManager.ConnectionStrings["PotatoCornerDB"].ConnectionString;
+                    conn.Open();
 
-                    using (SqlConnection conn = new SqlConnection(connectionString))
+                    // Prevent points from going below 0 in the database
+                    string updateQuery = @"
+                        UPDATE USERS 
+                        SET Points = CASE 
+                            WHEN Points + @Delta < 0 THEN 0 
+                            ELSE Points + @Delta 
+                        END
+                        WHERE CustomerID = @CustomerID";
+
+                    using (SqlCommand cmd = new SqlCommand(updateQuery, conn))
                     {
-                        conn.Open();
-                        string updateQuery = "UPDATE USERS SET Points = Points + @PointsEarned WHERE CustomerID = @CustomerID";
-                        using (SqlCommand cmd = new SqlCommand(updateQuery, conn))
-                        {
-                            cmd.Parameters.AddWithValue("@PointsEarned", pointsEarned);
-                            cmd.Parameters.AddWithValue("@CustomerID", Convert.ToInt32(Session["CustomerID"]));
-                            cmd.ExecuteNonQuery();
-                        }
+                        cmd.Parameters.AddWithValue("@Delta", pointsDelta);
+                        cmd.Parameters.AddWithValue("@CustomerID", Convert.ToInt32(Session["CustomerID"]));
+                        cmd.ExecuteNonQuery();
+                    }
 
-                        if (Session["Points"] != null)
-                        {
-                            int currentPoints = Convert.ToInt32(Session["Points"]);
-                            Session["Points"] = (currentPoints + pointsEarned).ToString();
-                        }
+                    // Sync session to reflect updated balance
+                    if (Session["Points"] != null)
+                    {
+                        int currentPoints = Convert.ToInt32(Session["Points"]);
+                        int newPoints = currentPoints + pointsDelta;
+                        Session["Points"] = Math.Max(0, newPoints).ToString();
                     }
                 }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine("Error updating points: " + ex.Message);
-                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Error updating points: " + ex.Message);
             }
         }
 
@@ -763,10 +875,10 @@ namespace PotatoCornerSys
             if (cart.Count == 0)
             {
                 cartDisplay.InnerHtml = @"
-                    <div class='cart-empty' style='text-align:center;color:#aaa;padding:50px 20px;font-size:15px;font-weight:600;'>
-                        Your cart is empty<br/>
-                        <small style='font-size:12px;color:#ccc;'>Add items from the menu to get started</small>
-                    </div>";
+            <div class='cart-empty' style='text-align:center;color:#aaa;padding:60px 20px;font-size:16px;font-weight:600;'>
+                Your cart is empty<br/>
+                <small style='font-size:13px;color:#ccc;'>Add items from the menu to get started</small>
+            </div>";
             }
             else
             {
@@ -776,16 +888,16 @@ namespace PotatoCornerSys
                 {
                     var item = cart[i];
                     html.AppendFormat(@"
-                        <div class='cart-item'>
-                            <div class='cart-item-header'>
-                                <span>{0} ({1})</span>
-                                <button type='button' class='btn-remove' onclick='removeCartItem({2})'>Remove</button>
-                            </div>
-                            <div class='cart-item-details'>
-                                Flavor: {3}<br/>
-                                Qty: {4} × PHP {5:0.00} = PHP {6:0.00}
-                            </div>
-                        </div>",
+                <div class='cart-item'>
+                    <div class='cart-item-header'>
+                        <span>{0} ({1})</span>
+                        <button type='button' class='btn-remove' onclick='removeCartItem({2})'>Remove</button>
+                    </div>
+                    <div class='cart-item-details'>
+                        <strong>Flavor:</strong> {3}<br/>
+                        <strong>Qty:</strong> {4} &times; PHP {5:0.00} = <strong>PHP {6:0.00}</strong>
+                    </div>
+                </div>",
                         item.Product, item.Size, i, item.Flavor, item.Qty, item.UnitPrice, item.LineTotal);
                 }
 
@@ -797,12 +909,12 @@ namespace PotatoCornerSys
                 decimal total = subtotal - discount + delivery;
 
                 html.AppendFormat(@"
-                    <div class='cart-totals'>
-                        <div class='total-row'><span>Subtotal:</span><span>PHP {0:0.00}</span></div>
-                        <div class='total-row'><span>Discount:</span><span>PHP {1:0.00}</span></div>
-                        <div class='total-row'><span>Delivery Fee:</span><span>PHP {2:0.00}</span></div>
-                        <div class='total-row grand'><span>Total:</span><span>PHP {3:0.00}</span></div>
-                    </div>", subtotal, discount, delivery, total);
+            <div class='cart-totals'>
+                <div class='total-row'><span>Subtotal:</span><span>PHP {0:0.00}</span></div>
+                <div class='total-row'><span>Discount:</span><span>PHP {1:0.00}</span></div>
+                <div class='total-row'><span>Delivery Fee:</span><span>PHP {2:0.00}</span></div>
+                <div class='total-row grand'><span>Total:</span><span>PHP {3:0.00}</span></div>
+            </div>", subtotal, discount, delivery, total);
 
                 cartDisplay.InnerHtml = html.ToString();
                 lblSubtotal.Text = subtotal.ToString("0.00");

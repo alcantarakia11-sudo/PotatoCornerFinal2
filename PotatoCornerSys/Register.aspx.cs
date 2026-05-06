@@ -1,10 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Configuration;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Text.RegularExpressions;
-using System.Web;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 
@@ -16,7 +14,6 @@ namespace PotatoCornerSys
 
         protected void btnRegister_Click(object sender, EventArgs e)
         {
-            // Clear all previous field errors first
             ClearAllErrors();
 
             string name = txtName.Text.Trim();
@@ -28,179 +25,42 @@ namespace PotatoCornerSys
             string confirmPassword = txtConfirmPassword.Text.Trim();
 
             bool hasError = false;
+            hasError |= Validate(string.IsNullOrEmpty(name), lblNameError, "Full name is required.");
+            hasError |= Validate(name.Length < 2, lblNameError, "Full name must be at least 2 characters.");
+            hasError |= Validate(!Regex.IsMatch(name, @"^[a-zA-Z\s]+$"), lblNameError, "Full name can only contain letters and spaces.");
+            hasError |= Validate(string.IsNullOrEmpty(email), lblEmailError, "Email is required.");
+            hasError |= Validate(!Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"), lblEmailError, "Please enter a valid email (e.g. user@email.com).");
+            hasError |= Validate(string.IsNullOrEmpty(username), lblUsernameError, "Username is required.");
+            hasError |= Validate(username.Length < 3, lblUsernameError, "Username must be at least 3 characters.");
+            hasError |= Validate(username.Contains(" "), lblUsernameError, "Username cannot contain spaces.");
+            hasError |= Validate(!Regex.IsMatch(username, @"^[a-zA-Z0-9_]+$"), lblUsernameError, "Username can only contain letters, numbers, and underscores.");
+            hasError |= Validate(string.IsNullOrEmpty(phone), lblPhoneError, "Phone number is required.");
+            hasError |= Validate(!phone.All(char.IsDigit), lblPhoneError, "Phone number can only contain numbers.");
+            hasError |= Validate(phone.Length != 11, lblPhoneError, "Phone number must be exactly 11 digits.");
+            hasError |= Validate(!phone.StartsWith("09"), lblPhoneError, "Phone number must start with 09.");
+            hasError |= Validate(string.IsNullOrEmpty(address), lblAddressError, "Address is required.");
+            hasError |= Validate(address.Length < 10, lblAddressError, "Please enter a complete address (at least 10 characters).");
+            hasError |= Validate(Regex.IsMatch(address, @"[;'\-\-]"), lblAddressError, "Address contains invalid characters.");
+            hasError |= Validate(string.IsNullOrEmpty(password), lblPasswordError, "Password is required.");
+            hasError |= Validate(password.Length < 8, lblPasswordError, "Password must be at least 8 characters.");
+            hasError |= Validate(!password.Any(char.IsLetter), lblPasswordError, "Password must contain at least one letter.");
+            hasError |= Validate(!password.Any(char.IsDigit), lblPasswordError, "Password must contain at least one number.");
+            hasError |= Validate(string.IsNullOrEmpty(confirmPassword), lblConfirmPasswordError, "Please confirm your password.");
+            hasError |= Validate(password != confirmPassword, lblConfirmPasswordError, "Passwords do not match.");
 
-            // ── FULL NAME ──────────────────────────────────────────
-            if (string.IsNullOrEmpty(name))
-            {
-                ShowFieldError(lblNameError, "Full name is required.");
-                hasError = true;
-            }
-            else if (name.Length < 2)
-            {
-                ShowFieldError(lblNameError, "Full name must be at least 2 characters.");
-                hasError = true;
-            }
-            else if (!Regex.IsMatch(name, @"^[a-zA-Z\s]+$"))
-            {
-                ShowFieldError(lblNameError, "Full name can only contain letters and spaces.");
-                hasError = true;
-            }
-
-            // ── EMAIL ──────────────────────────────────────────────
-            if (string.IsNullOrEmpty(email))
-            {
-                ShowFieldError(lblEmailError, "Email is required.");
-                hasError = true;
-            }
-            else if (!Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
-            {
-                ShowFieldError(lblEmailError, "Please enter a valid email (e.g. user@email.com).");
-                hasError = true;
-            }
-
-            // ── USERNAME ───────────────────────────────────────────
-            if (string.IsNullOrEmpty(username))
-            {
-                ShowFieldError(lblUsernameError, "Username is required.");
-                hasError = true;
-            }
-            else if (username.Length < 3)
-            {
-                ShowFieldError(lblUsernameError, "Username must be at least 3 characters.");
-                hasError = true;
-            }
-            else if (username.Contains(" "))
-            {
-                ShowFieldError(lblUsernameError, "Username cannot contain spaces.");
-                hasError = true;
-            }
-            else if (!Regex.IsMatch(username, @"^[a-zA-Z0-9_]+$"))
-            {
-                ShowFieldError(lblUsernameError, "Username can only contain letters, numbers, and underscores.");
-                hasError = true;
-            }
-
-            // ── PHONE ──────────────────────────────────────────────
-            if (string.IsNullOrEmpty(phone))
-            {
-                ShowFieldError(lblPhoneError, "Phone number is required.");
-                hasError = true;
-            }
-            else if (!phone.All(char.IsDigit))
-            {
-                ShowFieldError(lblPhoneError, "Phone number can only contain numbers.");
-                hasError = true;
-            }
-            else if (phone.Length != 11)
-            {
-                ShowFieldError(lblPhoneError, "Phone number must be exactly 11 digits.");
-                hasError = true;
-            }
-            else if (!phone.StartsWith("09"))
-            {
-                ShowFieldError(lblPhoneError, "Phone number must start with 09.");
-                hasError = true;
-            }
-
-            // ── ADDRESS ────────────────────────────────────────────
-            if (string.IsNullOrEmpty(address))
-            {
-                ShowFieldError(lblAddressError, "Address is required.");
-                hasError = true;
-            }
-            else if (address.Length < 10)
-            {
-                ShowFieldError(lblAddressError, "Please enter a complete address (at least 10 characters).");
-                hasError = true;
-            }
-            else if (Regex.IsMatch(address, @"[;'\-\-]"))
-            {
-                ShowFieldError(lblAddressError, "Address contains invalid characters.");
-                hasError = true;
-            }
-
-            // ── PASSWORD ───────────────────────────────────────────
-            if (string.IsNullOrEmpty(password))
-            {
-                ShowFieldError(lblPasswordError, "Password is required.");
-                hasError = true;
-            }
-            else if (password.Length < 8)
-            {
-                ShowFieldError(lblPasswordError, "Password must be at least 8 characters.");
-                hasError = true;
-            }
-            else if (!password.Any(char.IsLetter))
-            {
-                ShowFieldError(lblPasswordError, "Password must contain at least one letter.");
-                hasError = true;
-            }
-            else if (!password.Any(char.IsDigit))
-            {
-                ShowFieldError(lblPasswordError, "Password must contain at least one number.");
-                hasError = true;
-            }
-
-            // ── CONFIRM PASSWORD ───────────────────────────────────
-            if (string.IsNullOrEmpty(confirmPassword))
-            {
-                ShowFieldError(lblConfirmPasswordError, "Please confirm your password.");
-                hasError = true;
-            }
-            else if (password != confirmPassword)
-            {
-                ShowFieldError(lblConfirmPasswordError, "Passwords do not match.");
-                hasError = true;
-            }
-
-            // Stop here if any field has an error
             if (hasError) return;
 
-            // ── DATABASE CHECKS + INSERT ───────────────────────────
             try
             {
-                string connectionString = ConfigurationManager.ConnectionStrings["PotatoCornerDB"].ConnectionString;
-                using (SqlConnection conn = new SqlConnection(connectionString))
+                string connStr = ConfigurationManager.ConnectionStrings["PotatoCornerDB"].ConnectionString;
+                using (SqlConnection conn = new SqlConnection(connStr))
                 {
                     conn.Open();
 
-                    // Check username duplicate
-                    string checkUsernameQuery = "SELECT COUNT(*) FROM USERS WHERE UserName = @Username";
-                    using (SqlCommand cmd = new SqlCommand(checkUsernameQuery, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@Username", username);
-                        if ((int)cmd.ExecuteScalar() > 0)
-                        {
-                            ShowFieldError(lblUsernameError, "Username already taken. Please choose another.");
-                            return;
-                        }
-                    }
+                    if (IsDuplicate(conn, "UserName", username)) { ShowFieldError(lblUsernameError, "Username already taken. Please choose another."); return; }
+                    if (IsDuplicate(conn, "Email", email)) { ShowFieldError(lblEmailError, "Email already registered. Please use a different one."); return; }
+                    if (IsDuplicate(conn, "PhoneNumber", phone)) { ShowFieldError(lblPhoneError, "Phone number already registered."); return; }
 
-                    // Check email duplicate
-                    string checkEmailQuery = "SELECT COUNT(*) FROM USERS WHERE Email = @Email";
-                    using (SqlCommand cmd = new SqlCommand(checkEmailQuery, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@Email", email);
-                        if ((int)cmd.ExecuteScalar() > 0)
-                        {
-                            ShowFieldError(lblEmailError, "Email already registered. Please use a different one.");
-                            return;
-                        }
-                    }
-
-                    // Check phone duplicate
-                    string checkPhoneQuery = "SELECT COUNT(*) FROM USERS WHERE PhoneNumber = @Phone";
-                    using (SqlCommand cmd = new SqlCommand(checkPhoneQuery, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@Phone", phone);
-                        if ((int)cmd.ExecuteScalar() > 0)
-                        {
-                            ShowFieldError(lblPhoneError, "Phone number already registered.");
-                            return;
-                        }
-                    }
-
-                    // INSERT
                     string insertQuery = @"
                         INSERT INTO USERS (UserName, Fullname, [Address], Email, PhoneNumber, [Password], Points, MembershipLevel)
                         VALUES (@Username, @Fullname, @Address, @Email, @Phone, @Password, 0, 'Regular')";
@@ -214,22 +74,14 @@ namespace PotatoCornerSys
                         cmd.Parameters.AddWithValue("@Phone", phone);
                         cmd.Parameters.AddWithValue("@Password", password);
 
-                        int rowsAffected = cmd.ExecuteNonQuery();
-
-                        if (rowsAffected > 0)
+                        if (cmd.ExecuteNonQuery() > 0)
                         {
                             lblMessage.Text = "✓ Registration successful! Redirecting to login...";
                             lblMessage.CssClass = "success-msg";
                             lblMessage.Visible = true;
-
-                            txtName.Text = "";
-                            txtEmail.Text = "";
-                            txtUsername.Text = "";
-                            txtPhone.Text = "";
-                            txtAddress.Text = "";
-                            txtPassword.Text = "";
-                            txtConfirmPassword.Text = "";
-
+                            txtName.Text = txtEmail.Text = txtUsername.Text = "";
+                            txtPhone.Text = txtAddress.Text = "";
+                            txtPassword.Text = txtConfirmPassword.Text = "";
                             Response.AddHeader("REFRESH", "3;URL=Login.aspx");
                         }
                         else
@@ -246,13 +98,30 @@ namespace PotatoCornerSys
                 lblMessage.Text = "Database Error: " + ex.Message;
                 lblMessage.CssClass = "error-msg";
                 lblMessage.Visible = true;
-
                 if (ex.InnerException != null)
                     lblMessage.Text += "<br/>Inner Error: " + ex.InnerException.Message;
             }
         }
 
         // ── HELPERS ────────────────────────────────────────────────
+
+        private bool Validate(bool condition, Label lbl, string message)
+        {
+            if (condition && !lbl.Visible)
+                ShowFieldError(lbl, message);
+            return condition;
+        }
+
+        private bool IsDuplicate(SqlConnection conn, string column, string value)
+        {
+            string query = $"SELECT COUNT(*) FROM USERS WHERE {column} = @Value";
+            using (SqlCommand cmd = new SqlCommand(query, conn))
+            {
+                cmd.Parameters.AddWithValue("@Value", value);
+                return (int)cmd.ExecuteScalar() > 0;
+            }
+        }
+
         private void ShowFieldError(Label lbl, string message)
         {
             lbl.Text = "⚠ " + message;

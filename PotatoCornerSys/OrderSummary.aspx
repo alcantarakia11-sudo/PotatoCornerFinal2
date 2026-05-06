@@ -107,7 +107,7 @@
         /* MAIN CONTAINER */
         .summary-container { 
             max-width: 1400px; 
-            margin: 40px auto; 
+            margin: 0px auto; 
             padding: 0 40px;
         }
         
